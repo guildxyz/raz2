@@ -65,18 +65,18 @@ export class ClaudeClient {
           tools: response.toolCalls.map(t => t.name)
         })
 
+        // Add the assistant message with tool calls
+        messages.push({ 
+          role: 'assistant', 
+          content: this.buildAssistantContentWithTools(response.content, response.toolCalls)
+        })
+
+        // Execute tools and add tool results
         const toolResults = await this.executeToolCalls(response.toolCalls)
-        
-        // Only add assistant message if it has content
-        if (response.content.trim()) {
-          messages.push({ role: 'assistant', content: response.content })
-        }
-        
-        // Add tool results as user message
-        const toolResultsContent = this.formatToolResults(toolResults)
-        if (toolResultsContent.trim()) {
-          messages.push({ role: 'user', content: toolResultsContent })
-        }
+        messages.push({ 
+          role: 'user', 
+          content: this.buildToolResultsContent(toolResults)
+        })
 
         toolCallCount++
       } catch (error) {
@@ -96,7 +96,7 @@ export class ClaudeClient {
     const tools = await this.toolManager.getAvailableTools()
     
     const filteredMessages = messages
-      .filter(msg => msg.role !== 'system')
+      .filter(msg => msg.role !== 'system' && msg.content.trim())
       .map(msg => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content
@@ -104,6 +104,7 @@ export class ClaudeClient {
 
     this.logger.debug('Sending messages to Claude API', {
       messageCount: filteredMessages.length,
+      toolCount: tools.length,
       messages: filteredMessages.map((msg, idx) => ({
         index: idx,
         role: msg.role,
@@ -114,18 +115,22 @@ export class ClaudeClient {
     })
     
     return retry(async () => {
-      const response = await this.client.messages.create({
+      const requestBody: any = {
         model: this.config.claudeModel,
         max_tokens: 4000,
-        messages: filteredMessages,
-        ...(tools.length > 0 && {
-          tools: tools.map(tool => ({
-            name: tool.name,
-            description: tool.description,
-            input_schema: tool.inputSchema
-          }))
-        })
-      } as any)
+        messages: filteredMessages
+      }
+
+      // Only add tools if we have any
+      if (tools.length > 0) {
+        requestBody.tools = tools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          input_schema: tool.inputSchema
+        }))
+      }
+
+      const response = await this.client.messages.create(requestBody)
 
       const toolCalls: ToolCall[] = []
       let content = ''
@@ -134,7 +139,7 @@ export class ClaudeClient {
         if (contentBlock.type === 'text') {
           content += contentBlock.text
         } else if (contentBlock.type === 'tool_use') {
-          const toolUseBlock = contentBlock as any; // Type assertion for tool_use block
+          const toolUseBlock = contentBlock as any
           toolCalls.push({
             id: toolUseBlock.id,
             name: toolUseBlock.name,
@@ -146,7 +151,8 @@ export class ClaudeClient {
       this.logger.debug('Claude API response', {
         contentLength: content.length,
         toolCallCount: toolCalls.length,
-        usage: response.usage
+        usage: response.usage,
+        stopReason: response.stop_reason
       })
 
       return {
@@ -205,12 +211,25 @@ export class ClaudeClient {
     return results
   }
 
-  private formatToolResults(results: ToolResult[]): string {
+
+
+  private buildAssistantContentWithTools(textContent: string, toolCalls: ToolCall[]): string {
+    // For now, we'll use a simple string format since our types expect string content
+    // In a full implementation, we'd use the proper content blocks format
+    if (textContent.trim()) {
+      return textContent
+    }
+    // If no text content, create a placeholder to avoid empty messages
+    return `Using tools: ${toolCalls.map(t => t.name).join(', ')}`
+  }
+
+  private buildToolResultsContent(results: ToolResult[]): string {
+    // Format tool results in a way that Claude can understand
     return results.map(result => {
       if (result.isError) {
-        return `Tool ${result.toolCallId} failed: ${result.result}`
+        return `<tool_result tool_use_id="${result.toolCallId}" is_error="true">${result.result}</tool_result>`
       }
-      return `Tool ${result.toolCallId} result: ${result.result}`
+      return `<tool_result tool_use_id="${result.toolCallId}">${result.result}</tool_result>`
     }).join('\n\n')
   }
 
