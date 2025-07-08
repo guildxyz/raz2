@@ -11,11 +11,12 @@ export class TelegramBotService {
 
   constructor(private config: BotConfig) {
     this.logger.info('Initializing TelegramBotService', {
-      botToken: this.config.telegramBotToken ? `${this.config.telegramBotToken.substring(0, 10)}...` : 'missing',
-      claudeModel: this.config.claudeModel
+      botToken: this.config.telegramToken ? `${this.config.telegramToken.substring(0, 10)}...` : 'missing',
+      claudeApiKey: this.config.claudeApiKey ? `${this.config.claudeApiKey.substring(0, 10)}...` : 'missing',
+      mcpServerPath: this.config.mcpServerPath
     });
 
-    this.bot = new TelegramBot(this.config.telegramBotToken, { 
+    this.bot = new TelegramBot(this.config.telegramToken, { 
       polling: true,
       request: {
         agentOptions: {
