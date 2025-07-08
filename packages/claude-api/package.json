@@ -1,5 +1,5 @@
 {
-  "name": "@claude-telegram-bot/claude-api",
+  "name": "@raz2/claude-api",
   "version": "1.0.0",
   "description": "Claude API integration with tool calls",
   "main": "./dist/index.js",
@@ -17,7 +17,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@claude-telegram-bot/shared": "workspace:*",
+    "@raz2/shared": "workspace:*",
     "@anthropic-ai/sdk": "^0.20.0",
     "@modelcontextprotocol/sdk": "^0.4.0",
     "zod": "^3.22.4"

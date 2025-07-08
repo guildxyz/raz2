@@ -21,7 +21,7 @@ export class MCPToolManager {
       })
 
       this.client = new Client({
-        name: 'claude-telegram-bot-client',
+        name: 'raz2-client',
         version: '1.0.0'
       })
 

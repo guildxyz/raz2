@@ -21,7 +21,7 @@ class MCPServer {
   constructor() {
     this.server = new Server(
       {
-        name: 'claude-telegram-bot-mcp-server',
+        name: 'raz2-mcp-server',
         version: '1.0.0'
       }
     )

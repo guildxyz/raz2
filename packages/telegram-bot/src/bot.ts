@@ -11,10 +11,7 @@ export class TelegramBotService {
 
   constructor(private config: BotConfig) {
     this.bot = new TelegramBot(config.telegramToken, { polling: true });
-    this.claude = new ClaudeClient({
-      anthropicApiKey: config.claudeApiKey,
-      mcpServerPath: config.mcpServerPath,
-    });
+    this.claude = new ClaudeClient();
     
     this.setupHandlers();
   }
@@ -117,39 +114,39 @@ export class TelegramBotService {
 
     await this.sendTypingAction(chatId);
 
-    const response = await this.claude.sendMessage(text, {
-      conversationId: chatId.toString(),
-      userName,
-    });
+    const response = await this.claude.sendMessage(text, conversation.messages);
 
-    if (response.success) {
+    try {
       conversation.messages.push(
         { role: 'user', content: text },
-        { role: 'assistant', content: response.message }
+        { role: 'assistant', content: response.content }
       );
 
-      await this.sendMessage(chatId, response.message);
+      await this.sendMessage(chatId, response.content);
 
-      if (response.toolsUsed && response.toolsUsed.length > 0) {
-        const toolInfo = response.toolsUsed.map((tool: string) => `• ${tool}`).join('\n');
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        const toolInfo = response.toolCalls.map((tool) => `• ${tool.name}`).join('\n');
         await this.sendMessage(chatId, `🛠️ Tools used:\n${toolInfo}`);
       }
-    } else {
-      await this.sendMessage(chatId, `Error: ${response.error}`);
+    } catch (error) {
+      this.logger.error('Error processing Claude response:', { 
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      await this.sendMessage(chatId, 'Sorry, an error occurred processing the response');
     }
   }
 
   private async handleToolsCommand(chatId: number): Promise<void> {
     try {
-      const tools = await this.claude.getAvailableTools();
+      const tools = await this.claude.listAvailableTools();
       
       if (tools.length === 0) {
         await this.sendMessage(chatId, 'No tools are currently available.');
         return;
       }
 
-      const toolList = tools.map((tool: any) => 
-        `🔧 **${tool.name}**\n   ${tool.description}`
+      const toolList = tools.map((tool: string) => 
+        `🔧 **${tool}**`
       ).join('\n\n');
 
       await this.sendMessage(chatId, `Available tools:\n\n${toolList}`);
@@ -263,7 +260,7 @@ Just type naturally and I'll help you!`;
   public async stop(): Promise<void> {
     try {
       await this.bot.stopPolling();
-      await this.claude.cleanup();
+      await this.claude.shutdown();
       this.conversations.clear();
       this.logger.info('Bot stopped');
     } catch (error) {

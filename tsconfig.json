@@ -21,14 +21,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@claude-telegram-bot/shared": ["./packages/shared/src"],
-      "@claude-telegram-bot/shared/*": ["./packages/shared/src/*"],
-      "@claude-telegram-bot/claude-api": ["./packages/claude-api/src"],
-      "@claude-telegram-bot/claude-api/*": ["./packages/claude-api/src/*"],
-      "@claude-telegram-bot/mcp-server": ["./packages/mcp-server/src"],
-      "@claude-telegram-bot/mcp-server/*": ["./packages/mcp-server/src/*"],
-      "@claude-telegram-bot/telegram-bot": ["./packages/telegram-bot/src"],
-      "@claude-telegram-bot/telegram-bot/*": ["./packages/telegram-bot/src/*"]
+      "@raz2/shared": ["./packages/shared/src"],
+      "@raz2/shared/*": ["./packages/shared/src/*"],
+      "@raz2/claude-api": ["./packages/claude-api/src"],
+      "@raz2/claude-api/*": ["./packages/claude-api/src/*"],
+      "@raz2/mcp-server": ["./packages/mcp-server/src"],
+      "@raz2/mcp-server/*": ["./packages/mcp-server/src/*"],
+      "@raz2/telegram-bot": ["./packages/telegram-bot/src"],
+      "@raz2/telegram-bot/*": ["./packages/telegram-bot/src/*"]
     }
   },
   "include": [

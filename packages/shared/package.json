@@ -1,5 +1,5 @@
 {
-  "name": "@claude-telegram-bot/shared",
+  "name": "@raz2/shared",
   "version": "1.0.0",
   "description": "Shared utilities and types",
   "main": "./dist/index.js",

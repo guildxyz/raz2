@@ -2,18 +2,18 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "@claude-telegram-bot/monorepo",
+      "name": "@raz2/monorepo",
       "devDependencies": {
         "@types/node": "^20.10.0",
         "typescript": "^5.3.0",
       },
     },
     "packages/claude-api": {
-      "name": "@claude-telegram-bot/claude-api",
+      "name": "@raz2/claude-api",
       "version": "1.0.0",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.20.0",
-        "@claude-telegram-bot/shared": "workspace:*",
+        "@raz2/shared": "workspace:*",
         "@modelcontextprotocol/sdk": "^0.4.0",
         "zod": "^3.22.4",
       },
@@ -23,13 +23,13 @@
       },
     },
     "packages/mcp-server": {
-      "name": "@claude-telegram-bot/mcp-server",
+      "name": "@raz2/mcp-server",
       "version": "1.0.0",
       "bin": {
         "mcp-server": "./dist/index.js"
       },
       "dependencies": {
-        "@claude-telegram-bot/shared": "workspace:*",
+        "@raz2/shared": "workspace:*",
         "@modelcontextprotocol/sdk": "^0.4.0",
         "node-fetch": "^3.3.2",
         "zod": "^3.22.4",
@@ -40,7 +40,7 @@
       },
     },
     "packages/shared": {
-      "name": "@claude-telegram-bot/shared",
+      "name": "@raz2/shared",
       "version": "1.0.0",
       "dependencies": {
         "zod": "^3.22.4",
@@ -54,11 +54,11 @@
       },
     },
     "packages/telegram-bot": {
-      "name": "@claude-telegram-bot/telegram-bot",
+      "name": "@raz2/telegram-bot",
       "version": "1.0.0",
       "dependencies": {
-        "@claude-telegram-bot/claude-api": "workspace:*",
-        "@claude-telegram-bot/shared": "workspace:*",
+        "@raz2/claude-api": "workspace:*",
+        "@raz2/shared": "workspace:*",
         "node-telegram-bot-api": "^0.65.1",
       },
       "devDependencies": {
@@ -71,13 +71,13 @@
   "packages": {
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.20.9", "", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7", "web-streams-polyfill": "^3.2.1" } }, "sha512-Lq74+DhiEQO6F9/gdVOLmHx57pX45ebK2Q/zH14xYe1157a7QeUVknRqIp0Jz5gQI01o7NKbuv9Dag2uQsLjDg=="],
 
-    "@claude-telegram-bot/claude-api": ["@claude-telegram-bot/claude-api@workspace:packages/claude-api"],
+    "@raz2/claude-api": ["@raz2/claude-api@workspace:packages/claude-api"],
 
-    "@claude-telegram-bot/mcp-server": ["@claude-telegram-bot/mcp-server@workspace:packages/mcp-server"],
+    "@raz2/mcp-server": ["@raz2/mcp-server@workspace:packages/mcp-server"],
 
-    "@claude-telegram-bot/shared": ["@claude-telegram-bot/shared@workspace:packages/shared"],
+    "@raz2/shared": ["@raz2/shared@workspace:packages/shared"],
 
-    "@claude-telegram-bot/telegram-bot": ["@claude-telegram-bot/telegram-bot@workspace:packages/telegram-bot"],
+    "@raz2/telegram-bot": ["@raz2/telegram-bot@workspace:packages/telegram-bot"],
 
     "@cypress/request": ["@cypress/request@3.0.8", "", { "dependencies": { "aws-sign2": "~0.7.0", "aws4": "^1.8.0", "caseless": "~0.12.0", "combined-stream": "~1.0.6", "extend": "~3.0.2", "forever-agent": "~0.6.1", "form-data": "~4.0.0", "http-signature": "~1.4.0", "is-typedarray": "~1.0.0", "isstream": "~0.1.2", "json-stringify-safe": "~5.0.1", "mime-types": "~2.1.19", "performance-now": "^2.1.0", "qs": "6.14.0", "safe-buffer": "^5.1.2", "tough-cookie": "^5.0.0", "tunnel-agent": "^0.6.0", "uuid": "^8.3.2" } }, "sha512-h0NFgh1mJmm1nr4jCwkGHwKneVYKghUyWe6TMNrk0B9zsjAJxpg8C4/+BAcmLgCPa1vj1V8rNUaILl+zYRUWBQ=="],
 

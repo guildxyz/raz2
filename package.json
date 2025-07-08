@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run --filter='*' build",
+    "build": "./scripts/build.sh",
+    "build-parallel": "bun run --filter='*' build",
     "dev": "bun run --filter='*' dev",
     "start": "cd packages/telegram-bot && bun run start",
     "start-bot": "./scripts/run.sh",

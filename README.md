@@ -35,7 +35,7 @@ A modern Telegram bot powered by Claude AI with Model Context Protocol (MCP) int
 1. **Clone and Install**
    ```bash
    git clone <your-repo>
-   cd claude-telegram-bot
+   cd raz2
    bun install
    ```
 
@@ -104,6 +104,64 @@ The bot uses a modern architecture with:
 2. **Claude API** processes messages with tool calling
 3. **MCP Server** provides extensible tools
 4. **Shared Package** contains common utilities
+
+## Deployment
+
+### Railway Deployment
+
+This project includes a `railway.json` configuration for easy deployment to Railway:
+
+1. **Connect to Railway**
+   ```bash
+   # Install Railway CLI
+   npm install -g @railway/cli
+   
+   # Login to Railway
+   railway login
+   ```
+
+2. **Deploy to Railway**
+   ```bash
+   # Initialize Railway project
+   railway init
+   
+   # Set environment variables
+   railway variables set TELEGRAM_BOT_TOKEN=your_bot_token
+   railway variables set ANTHROPIC_API_KEY=your_api_key
+   railway variables set CLAUDE_MODEL=claude-3-haiku-20240307
+   
+   # Deploy
+   railway up
+   ```
+
+3. **Environment Variables Required**
+   - `TELEGRAM_BOT_TOKEN` - Your Telegram bot token
+   - `ANTHROPIC_API_KEY` - Your Anthropic API key
+   - `CLAUDE_MODEL` - Claude model (optional, defaults to claude-3-haiku-20240307)
+   - `WEATHER_API_KEY` - OpenWeather API key (optional, for weather tool)
+
+The `railway.json` file automatically handles:
+- Building all packages with Bun
+- Setting up the correct start command
+- Configuring restart policies
+- Production environment variables
+
+### Manual Deployment
+
+For other platforms:
+
+1. **Build the project**
+   ```bash
+   bun install
+   bun run build
+   ```
+
+2. **Set environment variables** (see `.env.example`)
+
+3. **Start the bot**
+   ```bash
+   bun run start
+   ```
 
 ## Contributing
 

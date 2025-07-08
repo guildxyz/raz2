@@ -1,5 +1,5 @@
 {
-  "name": "@claude-telegram-bot/mcp-server",
+  "name": "@raz2/mcp-server",
   "version": "1.0.0",
   "description": "MCP server with basic tools",
   "main": "./dist/index.js",
@@ -15,7 +15,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@claude-telegram-bot/shared": "workspace:*",
+    "@raz2/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^0.4.0",
     "zod": "^3.22.4",
     "node-fetch": "^3.3.2"
