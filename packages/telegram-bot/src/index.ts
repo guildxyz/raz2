@@ -6,7 +6,7 @@ import { TelegramBotService } from './bot.js';
 import { BotConfig } from './types.js';
 
 // Load environment variables from root directory
-config({ path: resolve(process.cwd(), '.env') });
+config({ path: resolve(process.cwd(), '../../.env') });
 
 export { TelegramBotService } from './bot.js';
 export * from './types.js';
@@ -20,7 +20,7 @@ async function createBot(): Promise<TelegramBotService> {
     const botConfig: BotConfig = {
       telegramToken: config.telegramBotToken,
       claudeApiKey: config.anthropicApiKey,
-      mcpServerPath: resolve(process.cwd(), 'packages/mcp-server/dist/index.js'),
+      mcpServerPath: resolve(process.cwd(), '../../packages/mcp-server/dist/index.js'),
     };
 
     validateConfig(botConfig);

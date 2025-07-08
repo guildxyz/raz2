@@ -18,12 +18,10 @@ export class MCPToolManager {
       this.logger.info('Initializing MCP client connection')
       
       // Find the project root directory (go up from packages/telegram-bot)
-      const projectRoot = resolve(process.cwd(), '../..')
-      const mcpServerPath = resolve(projectRoot, 'packages/mcp-server/dist/index.js')
+      const mcpServerPath = resolve(process.cwd(), '../../packages/mcp-server/dist/index.js')
       
       this.logger.info('MCP server path resolved', { 
         cwd: process.cwd(),
-        projectRoot,
         mcpServerPath
       })
       
