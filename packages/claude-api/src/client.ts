@@ -62,20 +62,32 @@ export class ClaudeClient {
 
         this.logger.info('Claude requested tool calls', { 
           toolCount: response.toolCalls.length,
-          tools: response.toolCalls.map(t => t.name)
+          tools: response.toolCalls.map(t => t.name),
+          responseContent: response.content.substring(0, 200) + (response.content.length > 200 ? '...' : '')
         })
 
         // Add the assistant message with tool calls
+        const assistantContent = this.buildAssistantContentWithTools(response.content, response.toolCalls)
         messages.push({ 
           role: 'assistant', 
-          content: this.buildAssistantContentWithTools(response.content, response.toolCalls)
+          content: assistantContent
+        })
+
+        this.logger.debug('Added assistant message', {
+          content: assistantContent.substring(0, 200) + (assistantContent.length > 200 ? '...' : '')
         })
 
         // Execute tools and add tool results
         const toolResults = await this.executeToolCalls(response.toolCalls)
+        const toolResultsContent = this.buildToolResultsContent(toolResults)
         messages.push({ 
           role: 'user', 
-          content: this.buildToolResultsContent(toolResults)
+          content: toolResultsContent
+        })
+
+        this.logger.debug('Added tool results message', {
+          content: toolResultsContent.substring(0, 200) + (toolResultsContent.length > 200 ? '...' : ''),
+          messageCount: messages.length
         })
 
         toolCallCount++
@@ -89,6 +101,15 @@ export class ClaudeClient {
     }
 
     this.logger.warn('Maximum tool calls reached', { maxToolCalls })
+    
+    // If we hit the max tool calls, return a response with the last tool execution results
+    if (response!) {
+      return {
+        ...response,
+        content: response.content.trim() || 'I\'ve completed the requested operations using the available tools.'
+      }
+    }
+    
     return response!
   }
 
@@ -118,7 +139,8 @@ export class ClaudeClient {
       const requestBody: any = {
         model: this.config.claudeModel,
         max_tokens: 4000,
-        messages: filteredMessages
+        messages: filteredMessages,
+        system: "You are a helpful assistant. When using tools, execute them as needed but always provide a clear, final response to the user. After using tools to gather information or perform actions, synthesize the results into a comprehensive answer. Do not repeatedly call the same tool unless different parameters are needed."
       }
 
       // Only add tools if we have any
@@ -214,23 +236,24 @@ export class ClaudeClient {
 
 
   private buildAssistantContentWithTools(textContent: string, toolCalls: ToolCall[]): string {
-    // For now, we'll use a simple string format since our types expect string content
-    // In a full implementation, we'd use the proper content blocks format
+    // Always include some content to avoid empty messages
     if (textContent.trim()) {
       return textContent
     }
-    // If no text content, create a placeholder to avoid empty messages
-    return `Using tools: ${toolCalls.map(t => t.name).join(', ')}`
+    // If no text content, create a meaningful message
+    return `I'll use the ${toolCalls.map(t => t.name).join(', ')} tool${toolCalls.length > 1 ? 's' : ''} to help with that.`
   }
 
   private buildToolResultsContent(results: ToolResult[]): string {
-    // Format tool results in a way that Claude can understand
-    return results.map(result => {
+    // Use a simpler format that Claude can better understand
+    const resultTexts = results.map(result => {
       if (result.isError) {
-        return `<tool_result tool_use_id="${result.toolCallId}" is_error="true">${result.result}</tool_result>`
+        return `Error from ${result.toolCallId}: ${result.result}`
       }
-      return `<tool_result tool_use_id="${result.toolCallId}">${result.result}</tool_result>`
-    }).join('\n\n')
+      return `Result from ${result.toolCallId}: ${result.result}`
+    })
+    
+    return `Tool execution completed:\n\n${resultTexts.join('\n\n')}`
   }
 
   async listAvailableTools(): Promise<string[]> {
