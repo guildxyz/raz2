@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@claude-telegram-bot/shared": ["./packages/shared/src"],
+      "@claude-telegram-bot/shared/*": ["./packages/shared/src/*"],
+      "@claude-telegram-bot/claude-api": ["./packages/claude-api/src"],
+      "@claude-telegram-bot/claude-api/*": ["./packages/claude-api/src/*"],
+      "@claude-telegram-bot/mcp-server": ["./packages/mcp-server/src"],
+      "@claude-telegram-bot/mcp-server/*": ["./packages/mcp-server/src/*"],
+      "@claude-telegram-bot/telegram-bot": ["./packages/telegram-bot/src"],
+      "@claude-telegram-bot/telegram-bot/*": ["./packages/telegram-bot/src/*"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "packages/*/*.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+} 

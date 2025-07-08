@@ -1,0 +1,28 @@
+{
+  "name": "@raz2/monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Replicating the CEO of Guild.xyz",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "bun run --filter='*' build",
+    "dev": "bun run --filter='*' dev",
+    "start": "cd packages/telegram-bot && bun run start",
+    "start-bot": "./scripts/run.sh",
+    "test": "bun run --filter='*' test",
+    "lint": "bun run --filter='*' lint",
+    "type-check": "bun run --filter='*' type-check",
+    "clean": "bun run --filter='*' clean",
+    "setup": "./scripts/setup.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "bun@1.0.0"
+} 
