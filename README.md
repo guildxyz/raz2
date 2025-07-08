@@ -134,9 +134,10 @@ This project includes a `railway.json` configuration for easy deployment to Rail
    railway up
    ```
 
-3. **Environment Variables Required**
+   3. **Environment Variables Required**
    - `TELEGRAM_BOT_TOKEN` - Your Telegram bot token
    - `ANTHROPIC_API_KEY` - Your Anthropic API key
+   - `NODE_ENV` - Set to `production` for Railway deployment
    - `CLAUDE_MODEL` - Claude model (optional, defaults to claude-3-haiku-20240307)
    - `WEATHER_API_KEY` - OpenWeather API key (optional, for weather tool)
 

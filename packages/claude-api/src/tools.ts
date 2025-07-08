@@ -27,7 +27,11 @@ export class MCPToolManager {
       
       this.transport = new StdioClientTransport({
         command: 'node',
-        args: [mcpServerPath]
+        args: [mcpServerPath],
+        env: {
+          ...process.env,
+          NODE_ENV: process.env.NODE_ENV || 'production'
+        }
       })
 
       this.client = new Client({

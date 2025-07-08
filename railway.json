@@ -5,7 +5,7 @@
     "buildCommand": "bun install && ./scripts/build.sh"
   },
   "deploy": {
-    "startCommand": "bun run start",
+    "startCommand": "NODE_ENV=production bun run start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   },

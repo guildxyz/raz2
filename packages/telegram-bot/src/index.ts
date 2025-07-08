@@ -5,8 +5,10 @@ import { loadEnvironmentConfig, createLogger } from '@raz2/shared';
 import { TelegramBotService } from './bot.js';
 import { BotConfig } from './types.js';
 
-// Load environment variables from root directory
-config({ path: resolve(process.cwd(), '../../.env') });
+// Load environment variables from root directory (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  config({ path: resolve(process.cwd(), '../../.env') });
+}
 
 export { TelegramBotService } from './bot.js';
 export * from './types.js';

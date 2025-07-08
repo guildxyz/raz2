@@ -14,8 +14,10 @@ import { CalculatorTool } from './tools/calculator'
 import { TimeTool } from './tools/time'
 import { EchoTool } from './tools/echo'
 
-// Load environment variables from root directory
-config({ path: resolve(process.cwd(), '../../.env') })
+// Load environment variables from root directory (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  config({ path: resolve(process.cwd(), '../../.env') });
+}
 
 const logger = createLogger('mcp-server')
 
