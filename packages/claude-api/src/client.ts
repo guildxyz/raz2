@@ -67,10 +67,16 @@ export class ClaudeClient {
 
         const toolResults = await this.executeToolCalls(response.toolCalls)
         
-        messages.push(
-          { role: 'assistant', content: response.content },
-          { role: 'user', content: this.formatToolResults(toolResults) }
-        )
+        // Only add assistant message if it has content
+        if (response.content.trim()) {
+          messages.push({ role: 'assistant', content: response.content })
+        }
+        
+        // Add tool results as user message
+        const toolResultsContent = this.formatToolResults(toolResults)
+        if (toolResultsContent.trim()) {
+          messages.push({ role: 'user', content: toolResultsContent })
+        }
 
         toolCallCount++
       } catch (error) {
@@ -89,16 +95,29 @@ export class ClaudeClient {
   private async makeClaudeRequest(messages: ClaudeMessage[]): Promise<ClaudeResponse> {
     const tools = await this.toolManager.getAvailableTools()
     
+    const filteredMessages = messages
+      .filter(msg => msg.role !== 'system')
+      .map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }))
+
+    this.logger.debug('Sending messages to Claude API', {
+      messageCount: filteredMessages.length,
+      messages: filteredMessages.map((msg, idx) => ({
+        index: idx,
+        role: msg.role,
+        contentLength: msg.content.length,
+        isEmpty: !msg.content.trim(),
+        preview: msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : '')
+      }))
+    })
+    
     return retry(async () => {
       const response = await this.client.messages.create({
         model: this.config.claudeModel,
         max_tokens: 4000,
-        messages: messages
-          .filter(msg => msg.role !== 'system')
-          .map(msg => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content
-          })),
+        messages: filteredMessages,
         ...(tools.length > 0 && {
           tools: tools.map(tool => ({
             name: tool.name,
