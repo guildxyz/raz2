@@ -2,6 +2,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { createLogger, loadEnvironmentConfig, formatError } from '@raz2/shared'
 import { z } from 'zod'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { ToolDefinition } from './types'
 
 export class MCPToolManager {
@@ -15,9 +17,19 @@ export class MCPToolManager {
     try {
       this.logger.info('Initializing MCP client connection')
       
+      // Find the project root directory (go up from packages/telegram-bot)
+      const projectRoot = resolve(process.cwd(), '../..')
+      const mcpServerPath = resolve(projectRoot, 'packages/mcp-server/dist/index.js')
+      
+      this.logger.info('MCP server path resolved', { 
+        cwd: process.cwd(),
+        projectRoot,
+        mcpServerPath
+      })
+      
       this.transport = new StdioClientTransport({
-        command: 'bun',
-        args: ['run', 'packages/mcp-server/src/index.ts']
+        command: 'node',
+        args: [mcpServerPath]
       })
 
       this.client = new Client({

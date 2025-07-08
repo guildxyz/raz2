@@ -1,8 +1,12 @@
+import { config } from 'dotenv';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadEnvironmentConfig, createLogger } from '@raz2/shared';
 import { TelegramBotService } from './bot.js';
 import { BotConfig } from './types.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+
+// Load environment variables from root directory
+config({ path: resolve(process.cwd(), '.env') });
 
 export { TelegramBotService } from './bot.js';
 export * from './types.js';

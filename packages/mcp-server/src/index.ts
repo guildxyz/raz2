@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { config } from 'dotenv'
+import { resolve } from 'node:path'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { 
@@ -11,6 +13,9 @@ import { WeatherTool } from './tools/weather'
 import { CalculatorTool } from './tools/calculator'
 import { TimeTool } from './tools/time'
 import { EchoTool } from './tools/echo'
+
+// Load environment variables from root directory
+config({ path: resolve(process.cwd(), '.env') })
 
 const logger = createLogger('mcp-server')
 

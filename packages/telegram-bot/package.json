@@ -2,6 +2,7 @@
   "name": "@raz2/telegram-bot",
   "version": "1.0.0",
   "description": "Telegram bot with Claude AI integration",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

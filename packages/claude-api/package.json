@@ -2,6 +2,7 @@
   "name": "@raz2/claude-api",
   "version": "1.0.0",
   "description": "Claude API integration with tool calls",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
