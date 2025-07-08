@@ -1,4 +1,4 @@
-import { ClaudeMessage } from '@claude-telegram-bot/shared';
+import { ClaudeMessage } from '@raz2/shared';
 
 export interface BotConfig {
   telegramToken: string;

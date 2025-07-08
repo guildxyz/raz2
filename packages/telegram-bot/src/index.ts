@@ -1,4 +1,4 @@
-import { loadEnvironmentConfig, createLogger } from '@claude-telegram-bot/shared';
+import { loadEnvironmentConfig, createLogger } from '@raz2/shared';
 import { TelegramBotService } from './bot.js';
 import { BotConfig } from './types.js';
 import { resolve } from 'node:path';

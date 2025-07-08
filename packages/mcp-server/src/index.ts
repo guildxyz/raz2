@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema 
 } from '@modelcontextprotocol/sdk/types.js'
-import { createLogger, loadEnvironmentConfig } from '@claude-telegram-bot/shared'
+import { createLogger, loadEnvironmentConfig } from '@raz2/shared'
 import { WeatherTool } from './tools/weather'
 import { CalculatorTool } from './tools/calculator'
 import { TimeTool } from './tools/time'

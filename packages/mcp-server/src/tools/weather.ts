@@ -1,5 +1,5 @@
 import { BaseTool, ToolInputSchema } from './base'
-import { loadEnvironmentConfig } from '@claude-telegram-bot/shared'
+import { loadEnvironmentConfig } from '@raz2/shared'
 
 interface WeatherData {
   temperature: number

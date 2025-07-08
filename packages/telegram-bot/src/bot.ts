@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { ClaudeClient } from '@claude-telegram-bot/claude-api';
-import { createLogger, sanitizeInput, parseCommand } from '@claude-telegram-bot/shared';
+import { ClaudeClient } from '@raz2/claude-api';
+import { createLogger, sanitizeInput, parseCommand } from '@raz2/shared';
 import { BotConfig, ConversationState, ProcessedMessage } from './types';
 
 export class TelegramBotService {

@@ -5,7 +5,7 @@ import {
   retry, 
   formatError,
   type ClaudeMessage 
-} from '@claude-telegram-bot/shared'
+} from '@raz2/shared'
 import { MCPToolManager } from './tools'
 import type { ClaudeResponse, ToolCall, ToolResult } from './types'
 

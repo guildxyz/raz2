@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { createLogger, loadEnvironmentConfig, formatError } from '@claude-telegram-bot/shared'
+import { createLogger, loadEnvironmentConfig, formatError } from '@raz2/shared'
 import { z } from 'zod'
 import type { ToolDefinition } from './types'
 
