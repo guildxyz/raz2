@@ -83,7 +83,11 @@ export const EnvironmentConfigSchema = z.object({
   logLevel: z.string().default('info'),
   port: z.number().default(3000),
   weatherApiKey: z.string().optional(),
-  newsApiKey: z.string().optional()
+  newsApiKey: z.string().optional(),
+  redisUrl: z.string().optional(),
+  openaiApiKey: z.string().optional(),
+  memoryIndexName: z.string().optional(),
+  embeddingModel: z.string().optional()
 })
 
 export const LogContextSchema = z.object({

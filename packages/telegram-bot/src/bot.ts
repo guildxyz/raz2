@@ -1,11 +1,14 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { ClaudeClient } from '@raz2/claude-api';
-import { createLogger, sanitizeInput, parseCommand } from '@raz2/shared';
+import { MemoryStore } from '@raz2/memory-store';
+import { createLogger, sanitizeInput, parseCommand, MEMORY_STORE_CONFIG } from '@raz2/shared';
 import { BotConfig, ConversationState, ProcessedMessage } from './types';
+import { MemoryService } from './memory-service';
 
 export class TelegramBotService {
   private bot: TelegramBot;
   private claude: ClaudeClient;
+  private memoryService: MemoryService;
   private logger = createLogger('TelegramBot');
   private conversations = new Map<number, ConversationState>();
 
@@ -13,7 +16,8 @@ export class TelegramBotService {
     this.logger.info('Initializing TelegramBotService', {
       botToken: this.config.telegramToken ? `${this.config.telegramToken.substring(0, 10)}...` : 'missing',
       claudeApiKey: this.config.claudeApiKey ? `${this.config.claudeApiKey.substring(0, 10)}...` : 'missing',
-      mcpServerPath: this.config.mcpServerPath
+      mcpServerPath: this.config.mcpServerPath,
+      memoryEnabled: !!this.config.memoryStore
     });
 
     this.bot = new TelegramBot(this.config.telegramToken, { 
@@ -27,6 +31,17 @@ export class TelegramBotService {
     });
     
     this.claude = new ClaudeClient();
+    
+    // Initialize memory service
+    if (this.config.memoryStore) {
+      const memoryStore = new MemoryStore(this.config.memoryStore);
+      this.memoryService = new MemoryService(memoryStore);
+      this.logger.info('Memory service enabled');
+    } else {
+      this.memoryService = new MemoryService();
+      this.logger.info('Memory service disabled - no configuration provided');
+    }
+    
     this.setupHandlers();
     
     this.logger.info('TelegramBotService initialized');
@@ -84,7 +99,11 @@ export class TelegramBotService {
         return;
       }
 
-      const conversation = this.getOrCreateConversation(processed.chatId);
+      const conversation = this.getOrCreateConversation(
+        processed.chatId, 
+        processed.userId, 
+        processed.userName
+      );
       
       if (processed.command?.command) {
         this.logger.info('Routing to command handler', {
@@ -136,13 +155,16 @@ export class TelegramBotService {
     };
   }
 
-  private getOrCreateConversation(chatId: number): ConversationState {
+  private getOrCreateConversation(chatId: number, userId?: number, userName?: string): ConversationState {
     if (!this.conversations.has(chatId)) {
-      this.logger.info('Creating new conversation', { chatId });
+      this.logger.info('Creating new conversation', { chatId, userId, userName });
       this.conversations.set(chatId, {
         chatId,
         messages: [],
         lastActivity: new Date(),
+        userId: userId?.toString(),
+        userName,
+        memoryContext: []
       });
     } else {
       this.logger.debug('Using existing conversation', { 
@@ -153,6 +175,15 @@ export class TelegramBotService {
 
     const conversation = this.conversations.get(chatId)!;
     conversation.lastActivity = new Date();
+    
+    // Update user info if provided
+    if (userId && !conversation.userId) {
+      conversation.userId = userId.toString();
+    }
+    if (userName && !conversation.userName) {
+      conversation.userName = userName;
+    }
+    
     return conversation;
   }
 
@@ -188,6 +219,26 @@ export class TelegramBotService {
         await this.handleToolsCommand(chatId);
         break;
       
+      case 'memories':
+        this.logger.info('Executing memories command', { chatId });
+        await this.handleMemoriesCommand(processed);
+        break;
+      
+      case 'remember':
+        this.logger.info('Executing remember command', { chatId });
+        await this.handleRememberCommand(processed);
+        break;
+      
+      case 'forget':
+        this.logger.info('Executing forget command', { chatId });
+        await this.handleForgetCommand(processed);
+        break;
+      
+      case 'search':
+        this.logger.info('Executing search command', { chatId });
+        await this.handleSearchCommand(processed);
+        break;
+      
       default:
         this.logger.warn('Unknown command received', {
           chatId,
@@ -198,30 +249,252 @@ export class TelegramBotService {
     }
   }
 
+  private async handleMemoriesCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, userId } = processed;
+
+    if (!this.memoryService.isMemoryEnabled()) {
+      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+      return;
+    }
+
+    if (!userId) {
+      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      return;
+    }
+
+    try {
+      const stats = await this.memoryService.getStats(userId.toString());
+      const memories = await this.memoryService.getUserMemories(userId.toString(), 10);
+
+      if (stats.count === 0) {
+        await this.sendMessage(chatId, '🧠 No memories found. Start chatting to build your memory!');
+        return;
+      }
+
+      const categoriesText = Object.entries(stats.categories)
+        .map(([category, count]) => `• ${category}: ${count}`)
+        .join('\n');
+
+      const recentMemories = memories.slice(0, 5)
+        .map((memory, index) => {
+          const date = memory.createdAt.toLocaleDateString();
+          const preview = memory.content.substring(0, 60) + (memory.content.length > 60 ? '...' : '');
+          return `${index + 1}. ${preview} (${date})`;
+        })
+        .join('\n');
+
+      const message = `🧠 Your Memories (${stats.count} total)
+
+📊 Categories:
+${categoriesText}
+
+📝 Recent memories:
+${recentMemories}
+
+Use /search <query> to find specific memories
+Use /remember <text> to save important information`;
+
+      await this.sendMessage(chatId, message);
+    } catch (error) {
+      this.logger.error('Error in memories command', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        chatId,
+        userId
+      });
+      await this.sendMessage(chatId, '❌ Error retrieving memories');
+    }
+  }
+
+  private async handleRememberCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, userId, command } = processed;
+
+    if (!this.memoryService.isMemoryEnabled()) {
+      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+      return;
+    }
+
+    if (!userId) {
+      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      return;
+    }
+
+    if (!command?.args || command.args.length === 0) {
+      await this.sendMessage(chatId, '❌ Please provide text to remember\nUsage: /remember <important information>');
+      return;
+    }
+
+    const content = command.args.join(' ');
+    
+    try {
+      const memory = await this.memoryService.storeUserPreference(
+        content,
+        userId.toString(),
+        chatId,
+        4 // High importance for manually saved memories
+      );
+
+      if (memory) {
+        await this.sendMessage(chatId, `✅ Remembered: "${content}"`);
+        this.logger.info('User manually saved memory', {
+          chatId,
+          userId,
+          memoryId: memory.id,
+          contentLength: content.length
+        });
+      } else {
+        await this.sendMessage(chatId, '❌ Failed to save memory');
+      }
+    } catch (error) {
+      this.logger.error('Error in remember command', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        chatId,
+        userId,
+        content: content.substring(0, 50)
+      });
+      await this.sendMessage(chatId, '❌ Error saving memory');
+    }
+  }
+
+  private async handleForgetCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, userId } = processed;
+
+    if (!this.memoryService.isMemoryEnabled()) {
+      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+      return;
+    }
+
+    if (!userId) {
+      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      return;
+    }
+
+    // For now, just show message about clearing conversation
+    // In the future, could implement selective memory deletion
+    this.conversations.delete(chatId);
+    
+    await this.sendMessage(chatId, `🧠 Conversation cleared! 
+
+Your stored memories remain intact. To manage individual memories, use:
+• /memories - View your memories
+• /search <query> - Find specific memories
+
+Note: Automatic memory deletion is not yet implemented for safety.`);
+  }
+
+  private async handleSearchCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, userId, command } = processed;
+
+    if (!this.memoryService.isMemoryEnabled()) {
+      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+      return;
+    }
+
+    if (!userId) {
+      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      return;
+    }
+
+    if (!command?.args || command.args.length === 0) {
+      await this.sendMessage(chatId, '❌ Please provide search terms\nUsage: /search <what to find>');
+      return;
+    }
+
+    const query = command.args.join(' ');
+    
+    try {
+      const results = await this.memoryService.searchRelevantMemories(
+        query,
+        userId.toString(),
+        10
+      );
+
+      if (results.length === 0) {
+        await this.sendMessage(chatId, `🔍 No memories found for: "${query}"`);
+        return;
+      }
+
+      const searchResults = results
+        .map((result, index) => {
+          const score = (result.score * 100).toFixed(1);
+          const date = result.memory.createdAt.toLocaleDateString();
+          const category = result.memory.metadata.category || 'general';
+          return `${index + 1}. ${result.memory.content}
+   📊 ${score}% match | 📅 ${date} | 🏷️ ${category}`;
+        })
+        .join('\n\n');
+
+      await this.sendMessage(chatId, `🔍 Search results for: "${query}"
+
+${searchResults}`);
+    } catch (error) {
+      this.logger.error('Error in search command', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        chatId,
+        userId,
+        query: query.substring(0, 50)
+      });
+      await this.sendMessage(chatId, '❌ Error searching memories');
+    }
+  }
+
   private async handleChatMessage(
     processed: ProcessedMessage,
     conversation: ConversationState
   ): Promise<void> {
-    const { chatId, text, userName } = processed;
+    const { chatId, text, userName, userId } = processed;
 
     this.logger.info('Processing chat message with Claude', {
       chatId,
       userName,
       messageLength: text.length,
       conversationHistory: conversation.messages.length,
+      memoryEnabled: this.memoryService.isMemoryEnabled(),
       text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
     });
 
     await this.sendTypingAction(chatId);
 
     try {
+      // Search for relevant memories if memory is enabled
+      let memoryContext = '';
+      if (this.memoryService.isMemoryEnabled() && conversation.userId) {
+        this.logger.debug('Searching for relevant memories', {
+          chatId,
+          userId: conversation.userId,
+          query: text.substring(0, 50)
+        });
+
+        const relevantMemories = await this.memoryService.searchRelevantMemories(
+          text,
+          conversation.userId,
+          3
+        );
+
+        if (relevantMemories.length > 0) {
+          memoryContext = this.memoryService.buildMemoryContext(relevantMemories, 500);
+          this.logger.info('Found relevant memories for context', {
+            chatId,
+            userId: conversation.userId,
+            memoryCount: relevantMemories.length,
+            contextLength: memoryContext.length
+          });
+        }
+      }
+
+      // Prepare message for Claude with memory context
+      let messageWithContext = text;
+      if (memoryContext) {
+        messageWithContext = `${memoryContext}\n\nCurrent message: ${text}`;
+      }
+
       this.logger.info('Sending message to Claude API', {
         chatId,
         messageLength: text.length,
+        contextLength: memoryContext.length,
         historyLength: conversation.messages.length
       });
 
-      const response = await this.claude.sendMessage(text, conversation.messages);
+      const response = await this.claude.sendMessage(messageWithContext, conversation.messages);
 
       this.logger.info('Received response from Claude', {
         chatId,
@@ -235,6 +508,27 @@ export class TelegramBotService {
         { role: 'user', content: text },
         { role: 'assistant', content: response.content }
       );
+
+      // Store conversation memory if enabled and significant
+      if (this.memoryService.isMemoryEnabled() && conversation.userId && text.length > 10) {
+        // Store user message as conversation memory
+        await this.memoryService.storeConversationMemory(
+          text,
+          conversation.userId,
+          chatId,
+          conversation.userName
+        );
+
+        // Store significant assistant responses
+        if (response.content.length > 20 && !response.content.startsWith('🛠️')) {
+          await this.memoryService.storeConversationMemory(
+            `Assistant response: ${response.content}`,
+            conversation.userId,
+            chatId,
+            conversation.userName
+          );
+        }
+      }
 
       this.logger.info('Sending response to Telegram', {
         chatId,
@@ -336,12 +630,22 @@ What would you like to talk about?`;
   }
 
   private getHelpMessage(): string {
-    return `📖 Available Commands
+    const baseCommands = `📖 Available Commands
 
 /start - Show welcome message
 /help - Show this help
 /clear - Clear conversation history
-/tools - List available tools
+/tools - List available tools`;
+
+    const memoryCommands = this.memoryService.isMemoryEnabled() ? `
+
+🧠 Memory Commands:
+/memories - View your stored memories
+/remember <text> - Save important information
+/search <query> - Search your memories
+/forget - Clear conversation (memories preserved)` : '';
+
+    const examples = `
 
 Examples:
 • "What's the weather like?"
@@ -350,6 +654,8 @@ Examples:
 • "Echo hello world"
 
 Just type naturally and I'll help you!`;
+
+    return baseCommands + memoryCommands + examples;
   }
 
   public async start(): Promise<void> {
@@ -368,6 +674,21 @@ Just type naturally and I'll help you!`;
       this.logger.info('Initializing Claude client...');
       await this.claude.initialize();
       this.logger.info('Claude client initialized');
+
+      // Initialize memory store if configured
+      if (this.memoryService.isMemoryEnabled()) {
+        this.logger.info('Initializing memory store...');
+        try {
+          // Access the private memoryStore through a getter or make it accessible
+          // For now, we'll rely on lazy initialization in memory service
+          this.logger.info('Memory store initialization deferred to first use');
+        } catch (error) {
+          this.logger.error('Failed to initialize memory store', {
+            error: error instanceof Error ? error : new Error(String(error))
+          });
+          // Continue without memory functionality
+        }
+      }
 
       this.startCleanupInterval();
       this.logger.info('Cleanup interval started');

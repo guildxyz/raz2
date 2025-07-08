@@ -1,178 +1,145 @@
-# Claude Telegram Bot with MCP Framework
+# Raz2 - Claude Telegram Bot with Memory
 
-A modern Telegram bot powered by Claude AI with Model Context Protocol (MCP) integration, built with Bun and TypeScript in a monorepo structure.
+A sophisticated Telegram bot powered by Claude AI with persistent memory capabilities using Redis Stack and vector search.
 
 ## Features
 
-- 🤖 **Telegram Bot**: Interactive bot interface with command handling
-- 🧠 **Claude AI Integration**: Advanced AI responses with tool calling capabilities
-- 🔧 **MCP Framework**: Model Context Protocol for extensible tool integration
-- 📦 **Monorepo**: Clean workspace organization with Bun
-- ⚡ **TypeScript**: Full type safety and modern development experience
+### Core Functionality
+- **Claude AI Integration**: Advanced conversational AI with tool support
+- **MCP Tool Support**: Extensible tool system (calculator, weather, time, echo)
+- **Telegram Bot**: Full-featured Telegram integration
+- **Memory System**: Persistent memory with semantic search using Redis Stack
+- **TypeScript Monorepo**: Well-structured, type-safe codebase
 
-## Project Structure
+### Memory Capabilities  
+- **Semantic Search**: Find relevant memories using vector similarity
+- **Automatic Storage**: Conversations stored automatically
+- **Manual Memory**: Save important information with `/remember`
+- **Memory Management**: View, search, and manage stored memories
+- **Context-Aware**: Retrieves relevant memories for better responses
 
+## Quick Start
+
+### Prerequisites
+- Bun or Node.js 18+
+- Telegram Bot Token
+- Claude API Key (Anthropic)
+- Redis Stack (optional, for memory features)
+- OpenAI API Key (optional, for memory embeddings)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone <repo-url>
+cd raz2
+
+# Install dependencies
+bun install
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your API keys
+
+# Build all packages
+bun run build
+
+# Start the bot
+bun run start-bot
 ```
-├── packages/
-│   ├── telegram-bot/       # Telegram bot implementation
-│   ├── claude-api/         # Claude API integration with tool calls
-│   ├── mcp-server/         # MCP server with basic tools
-│   └── shared/             # Shared utilities and types
-├── package.json            # Root workspace configuration
-├── tsconfig.json           # TypeScript configuration
-└── .env.example           # Environment variables template
+
+### Environment Variables
+
+#### Required
+```bash
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
 
-## Prerequisites
+#### Optional (for enhanced features)
+```bash
+# Weather functionality
+WEATHER_API_KEY=your_openweather_api_key
 
-- [Bun](https://bun.sh) >= 1.0.0
-- Node.js >= 18.0.0
-- Telegram Bot Token (from [@BotFather](https://t.me/botfather))
-- Anthropic API Key (from [Anthropic Console](https://console.anthropic.com))
+# Memory functionality (requires both)
+REDIS_URL=redis://localhost:6379
+OPENAI_API_KEY=your_openai_api_key
 
-## Quick Setup
+# Memory configuration (optional)
+MEMORY_INDEX_NAME=memories
+EMBEDDING_MODEL=text-embedding-3-small
+```
 
-1. **Clone and Install**
-   ```bash
-   git clone <your-repo>
-   cd raz2
-   bun install
-   ```
+## Memory Commands
 
-2. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
+When memory is enabled, the bot supports these commands:
 
-3. **Build and Start**
-   ```bash
-   ./scripts/setup.sh
-   # OR
-   bun run setup
-   
-   # Then start the bot
-   bun start
-   ```
+- `/memories` - View your stored memories and stats
+- `/remember <text>` - Save important information
+- `/search <query>` - Search your memories semantically  
+- `/forget` - Clear conversation (memories preserved)
 
-## Environment Variables
+## Package Structure
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | ✅ |
-| `ANTHROPIC_API_KEY` | Claude API key | ✅ |
-| `CLAUDE_MODEL` | Claude model to use | ❌ |
-| `MCP_SERVER_PORT` | MCP server port | ❌ |
-| `WEATHER_API_KEY` | Weather tool API key | ❌ |
+- **`packages/shared`** - Common utilities and types
+- **`packages/claude-api`** - Claude AI integration with tool support
+- **`packages/mcp-server`** - MCP tool server implementation
+- **`packages/telegram-bot`** - Telegram bot with memory integration
+- **`packages/memory-store`** - Redis Stack vector memory system
 
-## Available Commands
+## Memory System Architecture
 
-- `./scripts/setup.sh` - Full project setup (install, build, configure)
-- `./scripts/run.sh` - Start the bot with checks
-- `bun start` - Start the Telegram bot
-- `bun run build` - Build all packages
-- `bun run dev` - Development mode with hot reload
-- `bun run type-check` - Run TypeScript type checking
-
-## Bot Commands
-
-- `/start` - Initialize the bot
-- `/help` - Show available commands
-- `/weather <city>` - Get weather information
-- `/time` - Get current time
-- `/calc <expression>` - Calculate mathematical expressions
+The memory system uses:
+- **Redis Stack**: Vector database with search capabilities
+- **OpenAI Embeddings**: Semantic understanding of content
+- **Automatic Context**: Relevant memories included in conversations
+- **Smart Storage**: Filters meaningful content for storage
 
 ## Development
 
-Each package can be developed independently:
-
 ```bash
-# Work on telegram bot
-cd packages/telegram-bot
+# Install dependencies
+bun install
+
+# Build all packages
+bun run build
+
+# Start in development mode
 bun run dev
 
-# Work on MCP server
-cd packages/mcp-server
-bun run dev
+# Type checking
+bun run type-check
+
+# Linting
+bun run lint
 ```
-
-## Architecture
-
-The bot uses a modern architecture with:
-
-1. **Telegram Bot** handles user interactions
-2. **Claude API** processes messages with tool calling
-3. **MCP Server** provides extensible tools
-4. **Shared Package** contains common utilities
 
 ## Deployment
 
+The bot is designed for easy deployment to platforms like Railway, Heroku, or any Docker-compatible environment.
+
 ### Railway Deployment
+1. Connect your GitHub repository
+2. Set environment variables in Railway dashboard
+3. Deploy automatically on push
 
-This project includes a `railway.json` configuration for easy deployment to Railway:
+### Docker Support
+```bash
+# Build Docker image
+docker build -t raz2-bot .
 
-1. **Connect to Railway**
-   ```bash
-   # Install Railway CLI
-   npm install -g @railway/cli
-   
-   # Login to Railway
-   railway login
-   ```
-
-2. **Deploy to Railway**
-   ```bash
-   # Initialize Railway project
-   railway init
-   
-   # Set environment variables
-   railway variables set TELEGRAM_BOT_TOKEN=your_bot_token
-   railway variables set ANTHROPIC_API_KEY=your_api_key
-   railway variables set NODE_ENV=production
-   railway variables set CLAUDE_MODEL=claude-3-haiku-20240307
-   
-   # Deploy
-   railway up
-   ```
-
-   3. **Environment Variables Required**
-   - `TELEGRAM_BOT_TOKEN` - Your Telegram bot token
-   - `ANTHROPIC_API_KEY` - Your Anthropic API key
-   - `NODE_ENV` - Set to `production` for Railway deployment
-   - `CLAUDE_MODEL` - Claude model (optional, defaults to claude-3-haiku-20240307)
-   - `WEATHER_API_KEY` - OpenWeather API key (optional, for weather tool)
-
-The `railway.json` file automatically handles:
-- Building all packages with Bun
-- Setting up the correct start command
-- Configuring restart policies
-- Production environment variables
-
-### Manual Deployment
-
-For other platforms:
-
-1. **Build the project**
-   ```bash
-   bun install
-   bun run build
-   ```
-
-2. **Set environment variables** (see `.env.example`)
-
-3. **Start the bot**
-   ```bash
-   bun run start
-   ```
+# Run with environment file
+docker run --env-file .env raz2-bot
+```
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests and type-check
+4. Add tests if applicable
 5. Submit a pull request
 
 ## License
 
-MIT License - see LICENSE file for details 
+MIT License - see LICENSE file for details. 

@@ -88,6 +88,10 @@ export interface EnvironmentConfig {
   port: number
   weatherApiKey?: string
   newsApiKey?: string
+  redisUrl?: string
+  openaiApiKey?: string
+  memoryIndexName?: string
+  embeddingModel?: string
 }
 
 export interface LogContext {

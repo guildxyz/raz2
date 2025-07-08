@@ -53,4 +53,19 @@ export const RETRY_CONFIG = {
 export const HEALTH_CHECK_ENDPOINTS = {
   BOT: '/health',
   MCP_SERVER: '/health'
+} as const
+
+export const MEMORY_STORE_CONFIG = {
+  DEFAULT_INDEX_NAME: 'memories',
+  DEFAULT_VECTOR_DIMENSION: 1536,
+  DEFAULT_EMBEDDING_MODEL: 'text-embedding-3-small',
+  SEARCH_LIMIT: 10,
+  SIMILARITY_THRESHOLD: 0.1
+} as const
+
+export const REDIS_CONFIG = {
+  DEFAULT_PORT: 6379,
+  DEFAULT_HOST: 'localhost',
+  CONNECTION_TIMEOUT: 5000,
+  RETRY_ATTEMPTS: 3
 } as const 

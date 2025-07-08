@@ -12,7 +12,11 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     logLevel: process.env.LOG_LEVEL || 'info',
     port: parseInt(process.env.PORT || '3000'),
     weatherApiKey: process.env.WEATHER_API_KEY,
-    newsApiKey: process.env.NEWS_API_KEY
+    newsApiKey: process.env.NEWS_API_KEY,
+    redisUrl: process.env.REDIS_URL,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    memoryIndexName: process.env.MEMORY_INDEX_NAME,
+    embeddingModel: process.env.EMBEDDING_MODEL
   }
 
   return EnvironmentConfigSchema.parse(env)

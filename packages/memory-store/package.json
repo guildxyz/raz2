@@ -1,0 +1,27 @@
+{
+  "name": "@raz2/memory-store",
+  "version": "1.0.0",
+  "description": "Memory storage and retrieval using Redis Stack with vector search",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "bun run clean && bun build --target=node --outdir=dist src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "clean": "rm -rf dist",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@raz2/shared": "workspace:*",
+    "redis": "^4.7.0",
+    "openai": "^4.67.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "keywords": ["redis", "vector-search", "memory", "embeddings"],
+  "author": "raz2",
+  "license": "MIT"
+} 

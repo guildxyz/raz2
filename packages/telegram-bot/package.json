@@ -21,6 +21,7 @@
   "dependencies": {
     "@raz2/shared": "workspace:*",
     "@raz2/claude-api": "workspace:*",
+    "@raz2/memory-store": "workspace:*",
     "node-telegram-bot-api": "^0.65.1"
   },
   "devDependencies": {

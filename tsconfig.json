@@ -16,8 +16,6 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
@@ -28,7 +26,9 @@
       "@raz2/mcp-server": ["./packages/mcp-server/src"],
       "@raz2/mcp-server/*": ["./packages/mcp-server/src/*"],
       "@raz2/telegram-bot": ["./packages/telegram-bot/src"],
-      "@raz2/telegram-bot/*": ["./packages/telegram-bot/src/*"]
+      "@raz2/telegram-bot/*": ["./packages/telegram-bot/src/*"],
+      "@raz2/memory-store": ["./packages/memory-store/src"],
+      "@raz2/memory-store/*": ["./packages/memory-store/src/*"]
     }
   },
   "include": [
