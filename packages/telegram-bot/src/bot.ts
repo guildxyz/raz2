@@ -56,6 +56,13 @@ export class TelegramBotService {
     
     const command = parseCommand(sanitizedText);
     
+    this.logger.debug('Processing message', {
+      originalText: text,
+      sanitizedText,
+      hasCommand: !!command.command,
+      command: command.command
+    });
+    
     return {
       chatId,
       text: sanitizedText,
@@ -146,8 +153,8 @@ export class TelegramBotService {
       }
 
       const toolList = tools.map((tool: string) => 
-        `🔧 **${tool}**`
-      ).join('\n\n');
+        `🔧 ${tool}`
+      ).join('\n');
 
       await this.sendMessage(chatId, `Available tools:\n\n${toolList}`);
     } catch (error) {
@@ -161,22 +168,16 @@ export class TelegramBotService {
   private async sendMessage(chatId: number, text: string): Promise<void> {
     try {
       await this.bot.sendMessage(chatId, text, {
-        parse_mode: 'Markdown',
         disable_web_page_preview: true,
       });
     } catch (error) {
       this.logger.error('Error sending message:', { 
         error: error instanceof Error ? error : new Error(String(error))
       });
-      try {
-        await this.bot.sendMessage(chatId, text);
-      } catch (fallbackError) {
-        this.logger.error('Error sending fallback message:', { 
-          error: fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError))
-        });
-      }
     }
   }
+
+
 
   private async sendTypingAction(chatId: number): Promise<void> {
     try {
@@ -189,7 +190,7 @@ export class TelegramBotService {
   }
 
   private getWelcomeMessage(): string {
-    return `🤖 **Claude Bot**
+    return `🤖 Claude Bot
 
 Welcome! I'm an AI assistant powered by Claude with access to various tools.
 
@@ -202,14 +203,14 @@ What would you like to talk about?`;
   }
 
   private getHelpMessage(): string {
-    return `📖 **Available Commands**
+    return `📖 Available Commands
 
 /start - Show welcome message
 /help - Show this help
 /clear - Clear conversation history
 /tools - List available tools
 
-**Examples:**
+Examples:
 • "What's the weather like?"
 • "Calculate 2 + 2 * 3"
 • "What time is it in Tokyo?"

@@ -128,6 +128,7 @@ This project includes a `railway.json` configuration for easy deployment to Rail
    # Set environment variables
    railway variables set TELEGRAM_BOT_TOKEN=your_bot_token
    railway variables set ANTHROPIC_API_KEY=your_api_key
+   railway variables set NODE_ENV=production
    railway variables set CLAUDE_MODEL=claude-3-haiku-20240307
    
    # Deploy
