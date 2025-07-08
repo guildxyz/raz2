@@ -4,7 +4,9 @@
     "outDir": "dist",
     "rootDir": "src",
     "composite": true,
-    "declarationMap": true
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"],

@@ -21,13 +21,7 @@ export class TelegramBotService {
     });
 
     this.bot = new TelegramBot(this.config.telegramToken, { 
-      polling: true,
-      request: {
-        agentOptions: {
-          keepAlive: true,
-          family: 4
-        }
-      }
+      polling: true
     });
     
     this.claude = new ClaudeClient();
@@ -460,7 +454,7 @@ ${searchResults}`);
       if (this.memoryService.isMemoryEnabled() && conversation.userId) {
         this.logger.debug('Searching for relevant memories', {
           chatId,
-          userId: conversation.userId,
+          userId: conversation.userId || 'unknown',
           query: text.substring(0, 50)
         });
 
@@ -474,7 +468,7 @@ ${searchResults}`);
           memoryContext = this.memoryService.buildMemoryContext(relevantMemories, 500);
           this.logger.info('Found relevant memories for context', {
             chatId,
-            userId: conversation.userId,
+            userId: conversation.userId || 'unknown',
             memoryCount: relevantMemories.length,
             contextLength: memoryContext.length
           });
@@ -500,7 +494,7 @@ ${searchResults}`);
         chatId,
         responseLength: response.content.length,
         toolCallsCount: response.toolCalls?.length || 0,
-        toolNames: response.toolCalls?.map(t => t.name) || [],
+        toolNames: response.toolCalls?.map((t: any) => t.name) || [],
         content: response.content.substring(0, 200) + (response.content.length > 200 ? '...' : '')
       });
 
@@ -538,11 +532,11 @@ ${searchResults}`);
       await this.sendMessage(chatId, response.content);
 
       if (response.toolCalls && response.toolCalls.length > 0) {
-        const toolInfo = response.toolCalls.map((tool) => `• ${tool.name}`).join('\n');
+        const toolInfo = response.toolCalls.map((tool: any) => `• ${tool.name}`).join('\n');
         this.logger.info('Sending tool usage info', {
           chatId,
           toolCount: response.toolCalls.length,
-          tools: response.toolCalls.map(t => t.name)
+          tools: response.toolCalls.map((t: any) => t.name)
         });
         await this.sendMessage(chatId, `🛠️ Tools used:\n${toolInfo}`);
       }
@@ -666,9 +660,7 @@ Just type naturally and I'll help you!`;
       this.logger.info(`Bot started: @${me.username}`, {
         id: me.id,
         firstName: me.first_name,
-        canJoinGroups: me.can_join_groups,
-        canReadAllGroupMessages: me.can_read_all_group_messages,
-        supportsInlineQueries: me.supports_inline_queries
+        isBot: me.is_bot
       });
 
       this.logger.info('Initializing Claude client...');

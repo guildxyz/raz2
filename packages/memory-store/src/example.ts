@@ -80,6 +80,5 @@ async function memoryStoreExample() {
   }
 }
 
-if (import.meta.main) {
-  memoryStoreExample().catch(console.error)
-} 
+// Run example if this file is executed directly
+memoryStoreExample().catch(console.error) 

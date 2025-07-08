@@ -145,7 +145,7 @@ export class MemoryService {
         query: query.substring(0, 50),
         userId,
         resultCount: results.length,
-        scores: results.map(r => r.score.toFixed(3))
+        scores: results.map((r: MemorySearchResult) => r.score.toFixed(3))
       })
 
       return results

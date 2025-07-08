@@ -156,7 +156,7 @@ export class MemoryStore {
       }
 
       // Store in Redis
-      await this.client.json.set(id, '$', memoryWithVector)
+      await this.client.json.set(id, '$', memoryWithVector as any)
 
       this.logger.info('Memory created successfully', {
         id: memoryWithVector.id,
@@ -185,7 +185,7 @@ export class MemoryStore {
         return null
       }
 
-      const memoryWithVector = data[0] as MemoryWithVector
+      const memoryWithVector = data[0] as unknown as MemoryWithVector
       const { vector, ...memory } = memoryWithVector
 
       // Convert date strings back to Date objects
@@ -211,7 +211,7 @@ export class MemoryStore {
         return null
       }
 
-      const memoryWithVector = existing[0] as MemoryWithVector
+      const memoryWithVector = existing[0] as unknown as MemoryWithVector
       const now = new Date()
 
       // Update content and regenerate embedding if content changed
@@ -231,7 +231,7 @@ export class MemoryStore {
 
       memoryWithVector.updatedAt = now
 
-      await this.client.json.set(key, '$', memoryWithVector)
+      await this.client.json.set(key, '$', memoryWithVector as any)
 
       this.logger.info('Memory updated successfully', { id: input.id })
 

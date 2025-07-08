@@ -95,7 +95,7 @@ export interface EnvironmentConfig {
 }
 
 export interface LogContext {
-  userId?: number
+  userId?: string | number
   chatId?: number
   messageId?: number
   command?: string
