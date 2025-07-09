@@ -58,8 +58,8 @@ export class IdeaService {
         category,
         priority,
         tags: [...tags, 'telegram', 'captured'],
-        userId,
-        chatId,
+          userId,
+          chatId,
         reminders: reminderDate ? [{
           type: 'once',
           scheduledFor: reminderDate,
@@ -136,7 +136,7 @@ export class IdeaService {
       this.logger.error('Failed to capture client insight', {
         error: error instanceof Error ? error : new Error(String(error)),
         clientName,
-        userId,
+          userId,
         chatId
       })
       return null
@@ -368,7 +368,7 @@ export class IdeaService {
       await this.ensureInitialized()
       
       const ideas = await this.ideaStore.listIdeas(userId ? { userId } : undefined, 1000)
-      
+
       const categories = ideas.reduce((acc: Record<string, number>, idea: Idea) => {
         acc[idea.category] = (acc[idea.category] || 0) + 1
         return acc

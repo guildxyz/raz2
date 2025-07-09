@@ -1,48 +1,70 @@
-export interface IdeaStoreStats {
-  count: number
-  indexSize: number
-  categories: Record<string, number>
-}
+export type IdeaCategory = 'strategy' | 'product' | 'sales' | 'partnerships' | 'competitive' | 'market' | 'team' | 'operations'
 
-export interface IdeaDisplayRow {
+export type IdeaPriority = 'low' | 'medium' | 'high' | 'urgent'
+
+export type IdeaStatus = 'active' | 'in_progress' | 'completed' | 'archived' | 'cancelled'
+
+export interface Idea {
   id: string
   title: string
   content: string
-  category: 'strategy' | 'product' | 'sales' | 'partnerships' | 'competitive' | 'market' | 'team' | 'operations'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  status: 'active' | 'in_progress' | 'completed' | 'archived'
+  category: IdeaCategory
+  priority: IdeaPriority
+  status: IdeaStatus
   tags: string[]
-  createdAt: Date
-  updatedAt: Date
   userId: string
   chatId?: number
-  hasReminders: boolean
+  createdAt: Date
+  updatedAt: Date
 }
 
-export interface IdeaStoreConfig {
-  redisUrl: string
-  openaiApiKey: string
-  indexName: string
-  embeddingModel: string
-  vectorDimension: number
-}
-
-export interface FilterOptions {
-  userId?: string
+export interface CreateIdeaInput {
+  title: string
+  content: string
+  category?: IdeaCategory
+  priority?: IdeaPriority
+  tags?: string[]
+  userId: string
   chatId?: number
-  category?: 'strategy' | 'product' | 'sales' | 'partnerships' | 'competitive' | 'market' | 'team' | 'operations'
-  priority?: 'low' | 'medium' | 'high' | 'urgent'
-  status?: 'active' | 'in_progress' | 'completed' | 'archived' | 'cancelled'
+}
+
+export interface UpdateIdeaInput {
+  id: string
+  title?: string
+  content?: string
+  category?: IdeaCategory
+  priority?: IdeaPriority
+  status?: IdeaStatus
   tags?: string[]
 }
 
-export interface SortOptions {
-  field: keyof IdeaDisplayRow
-  direction: 'asc' | 'desc'
+export interface IdeaFilter {
+  userId?: string
+  chatId?: number
+  category?: IdeaCategory
+  priority?: IdeaPriority
+  status?: IdeaStatus
+  tags?: string[]
+  dateRange?: {
+    start: Date
+    end: Date
+  }
 }
 
-export interface IdeaStoreConnection {
-  isConnected: boolean
+export interface IdeaFormData {
+  title: string
+  content: string
+  category: IdeaCategory
+  priority: IdeaPriority
+  tags: string[]
+}
+
+export interface IdeaStoreContextType {
+  ideas: Idea[]
+  loading: boolean
   error: string | null
-  connecting: boolean
+  createIdea: (idea: CreateIdeaInput) => Promise<void>
+  updateIdea: (idea: UpdateIdeaInput) => Promise<void>
+  deleteIdea: (id: string) => Promise<void>
+  refreshIdeas: () => Promise<void>
 } 

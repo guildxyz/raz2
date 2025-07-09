@@ -1,119 +1,130 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { IdeaDisplayRow, IdeaStoreStats, IdeaStoreConnection } from '../types'
+import { useState, useCallback } from 'react'
+import type { Idea, CreateIdeaInput, UpdateIdeaInput } from '../types'
+
+const STORAGE_KEY = 'idea-manager-ideas'
+
+const generateId = () => Math.random().toString(36).substr(2, 9)
+
+const loadIdeasFromStorage = (): Idea[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+const saveIdeasToStorage = (ideas: Idea[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas))
+  } catch (error) {
+    console.error('Failed to save ideas to localStorage:', error)
+  }
+}
 
 export const useIdeaStore = () => {
-  const [ideas, setIdeas] = useState<IdeaDisplayRow[]>([])
-  const [stats, setStats] = useState<IdeaStoreStats>({ count: 0, indexSize: 0, categories: {} })
-  const [connection, setConnection] = useState<IdeaStoreConnection>({
-    isConnected: false,
-    error: null,
-    connecting: false
-  })
+  const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const initializeStore = useCallback(async () => {
-    setConnection(prev => ({ ...prev, connecting: true, error: null }))
-    
-    try {
-      const response = await fetch('/api/health')
-      if (response.ok) {
-        setConnection({ isConnected: true, error: null, connecting: false })
-        await loadIdeas()
-        await loadStats()
-      } else {
-        throw new Error('Strategic intelligence backend not available')
-      }
-    } catch (error) {
-      setConnection({
-        isConnected: false,
-        error: error instanceof Error ? error.message : 'Failed to connect to strategic intelligence system',
-        connecting: false
-      })
-    }
-  }, [])
-
-  const loadIdeas = useCallback(async () => {
-    if (!connection.isConnected) return
-    
+  const createIdea = useCallback(async (input: CreateIdeaInput) => {
     setLoading(true)
+    setError(null)
     try {
-      const response = await fetch('/api/ideas')
-      if (!response.ok) {
-        throw new Error('Failed to load strategic ideas')
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      const newIdea: Idea = {
+        id: generateId(),
+        title: input.title,
+        content: input.content,
+        category: input.category || 'strategy',
+        priority: input.priority || 'medium',
+        status: 'active',
+        tags: input.tags || [],
+        userId: input.userId,
+        chatId: input.chatId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
       
-      const data = await response.json()
-      const transformedIdeas: IdeaDisplayRow[] = data.ideas.map((idea: any) => ({
-        ...idea,
-        createdAt: new Date(idea.createdAt),
-        updatedAt: new Date(idea.updatedAt),
-        hasReminders: idea.reminders && idea.reminders.length > 0
-      }))
-      
-      setIdeas(transformedIdeas)
-    } catch (error) {
-      console.error('Failed to load strategic ideas:', error)
-      setConnection(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Failed to load strategic ideas'
-      }))
+      setIdeas(prev => {
+        const updated = [newIdea, ...prev]
+        saveIdeasToStorage(updated)
+        return updated
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create idea')
     } finally {
       setLoading(false)
     }
-  }, [connection.isConnected])
+  }, [])
 
-  const loadStats = useCallback(async () => {
-    if (!connection.isConnected) return
-    
+  const updateIdea = useCallback(async (input: UpdateIdeaInput) => {
+    setLoading(true)
+    setError(null)
     try {
-      const response = await fetch('/api/ideas/stats')
-      if (!response.ok) {
-        throw new Error('Failed to load strategic intelligence stats')
-      }
+      await new Promise(resolve => setTimeout(resolve, 300))
       
-      const data = await response.json()
-      setStats(data)
-    } catch (error) {
-      console.error('Failed to load strategic intelligence stats:', error)
-    }
-  }, [connection.isConnected])
-
-  const deleteIdea = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`/api/ideas/${id}`, {
-        method: 'DELETE'
+      setIdeas(prev => {
+        const updated = prev.map(idea => 
+          idea.id === input.id 
+            ? { 
+                ...idea, 
+                ...input, 
+                updatedAt: new Date() 
+              } 
+            : idea
+        )
+        saveIdeasToStorage(updated)
+        return updated
       })
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete strategic idea')
-      }
-      
-      setIdeas(prev => prev.filter(idea => idea.id !== id))
-      await loadStats()
-      return true
-    } catch (error) {
-      console.error('Failed to delete strategic idea:', error)
-      return false
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update idea')
+    } finally {
+      setLoading(false)
     }
-  }, [loadStats])
+  }, [])
 
-  const refresh = useCallback(async () => {
-    await Promise.all([loadIdeas(), loadStats()])
-  }, [loadIdeas, loadStats])
+  const deleteIdea = useCallback(async (id: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      setIdeas(prev => {
+        const updated = prev.filter(idea => idea.id !== id)
+        saveIdeasToStorage(updated)
+        return updated
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete idea')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  useEffect(() => {
-    initializeStore()
-  }, [initializeStore])
+  const refreshIdeas = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      const stored = loadIdeasFromStorage()
+      setIdeas(stored)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch ideas')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   return {
     ideas,
-    stats,
-    connection,
     loading,
-    initializeStore,
-    loadIdeas,
-    loadStats,
+    error,
+    createIdea,
+    updateIdea,
     deleteIdea,
-    refresh
+    refreshIdeas,
   }
 } 

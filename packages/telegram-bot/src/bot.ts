@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { ClaudeClient } from '@raz2/claude-api';
+import { ClaudeClient, ToolExecutor } from '@raz2/claude-api';
 import { IdeaStore } from '@raz2/idea-store';
 import { createLogger, sanitizeInput, parseCommand, IDEA_STORE_CONFIG } from '@raz2/shared';
 import { BotConfig, ConversationState, ProcessedMessage } from './types';
@@ -11,6 +11,7 @@ export class TelegramBotService {
   private bot: TelegramBot;
   private claude: ClaudeClient;
   private ideaService: IdeaService;
+  private toolExecutor?: ToolExecutor;
   private webServer?: WebServer;
   private logger = createLogger('TelegramBot');
   private conversations = new Map<number, ConversationState>();
@@ -33,7 +34,12 @@ export class TelegramBotService {
     if (this.config.ideaStore) {
       const ideaStore = new IdeaStore(this.config.ideaStore);
       this.ideaService = new IdeaService(ideaStore);
-      this.logger.info('Idea service enabled');
+      
+      // Enable Claude tools for idea management
+      this.toolExecutor = new ToolExecutor(this.ideaService);
+      this.claude.enableIdeaTools(this.toolExecutor);
+      
+      this.logger.info('Idea service and Claude tools enabled');
     } else {
       this.ideaService = new IdeaService();
       this.logger.info('Idea service disabled - no configuration provided');
@@ -514,7 +520,12 @@ ${searchResults}`);
         historyLength: conversation.messages.length
       });
 
-      const response = await this.claude.sendMessage(messageWithContext, conversation.messages);
+      const response = await this.claude.sendMessage(
+        messageWithContext, 
+        conversation.messages,
+        conversation.userId,
+        chatId
+      );
 
       this.logger.info('Received response from Claude', {
         chatId,
@@ -533,7 +544,7 @@ ${searchResults}`);
         if (isStrategic) {
           await this.ideaService.captureStrategicIdea(
             'Conversation Insight',
-            text,
+          text,
             conversation.userId,
             chatId,
             'strategy',
@@ -652,7 +663,15 @@ I help with:
 • Partnership and business development opportunities
 • Team and operational strategy
 
-I automatically capture and organize strategic insights from our conversations. Use /help for available commands.
+💡 **NEW: Intelligent Idea Management**
+I can now automatically:
+• Capture and save your strategic ideas during conversations
+• Search through your previous ideas using natural language
+• Provide overviews of your idea landscape and insights
+
+Just mention an idea or ask me to find something - I'll handle it intelligently!
+
+Use /help for available commands.
 
 What strategic challenge would you like to discuss?`;
   }

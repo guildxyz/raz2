@@ -99,7 +99,7 @@ export const LogContextSchema = z.object({
   messageId: z.number().optional(),
   command: z.string().optional(),
   error: z.any().optional()
-}).catchall(z.any())
+}).catchall(z.any()) 
 
 export const IdeaCategorySchema = z.enum(['strategy', 'product', 'sales', 'partnerships', 'competitive', 'market', 'team', 'operations'])
 

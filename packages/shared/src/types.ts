@@ -67,7 +67,7 @@ export interface LogContext {
   command?: string
   error?: Error
   [key: string]: any
-}
+} 
 
 export interface Idea {
   id: string

@@ -30,7 +30,7 @@ async function ideaStoreExample() {
       priority: 'high',
       tags: ['enterprise', 'multi-guild', 'permissions', 'analytics'],
       userId: 'raz',
-      chatId: 456,
+        chatId: 456,
       reminders: [
         {
           type: 'once',
@@ -47,7 +47,7 @@ async function ideaStoreExample() {
       priority: 'medium',
       tags: ['ai', 'engagement', 'retention', 'personalization'],
       userId: 'raz',
-      chatId: 456,
+        chatId: 456,
       reminders: [
         {
           type: 'weekly',
