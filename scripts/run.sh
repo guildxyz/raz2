@@ -24,5 +24,8 @@ if [ ! -d "packages/telegram-bot/dist" ]; then
     bun run build
 fi
 
+# Run database setup and migrations
+./scripts/db-setup.sh
+
 echo "🚀 Launching CEO strategic intelligence interface..."
 cd packages/telegram-bot && bun run start 

@@ -19,6 +19,10 @@ echo "💡 Building strategic idea store..."
 cd ../idea-store
 bun run build
 
+# Prepare database migrations for deployment
+echo "🗃️ Preparing database migrations..."
+npm run db:generate
+
 # Build idea-ui package (strategic dashboard)
 echo "🌐 Building strategic intelligence dashboard..."
 cd ../idea-ui

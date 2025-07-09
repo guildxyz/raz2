@@ -41,7 +41,7 @@ This system empowers the CEO of Guild.xyz to:
 ### Prerequisites
 - Telegram Bot Token (for secure CEO communication)
 - Claude API Key (Anthropic) for AI intelligence
-- Redis Stack (for strategic data persistence)
+- PostgreSQL with pgvector extension (for strategic data persistence)
 - OpenAI API Key (for semantic search capabilities)
 
 ### Installation
@@ -56,10 +56,13 @@ bun install
 
 # Set up environment variables
 cp .env.example .env
-# Configure with your API keys and settings
+# Configure with your API keys and PostgreSQL database settings
 
 # Build the system
 bun run build
+
+# Database setup (automatic on first run)
+bun run db:migrate
 
 # Start the strategic intelligence bot
 bun run start-bot
@@ -73,9 +76,8 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # Strategic Intelligence Backend
-REDIS_URL=redis://localhost:6379
+DATABASE_URL=postgresql://user:password@localhost:5432/guild_strategic_db
 OPENAI_API_KEY=your_openai_api_key
-IDEA_INDEX_NAME=guild_strategic_ideas
 EMBEDDING_MODEL=text-embedding-3-small
 
 # Strategic Dashboard
@@ -127,7 +129,7 @@ The web interface provides enterprise-grade strategic intelligence:
 
 ### Strategic Intelligence Stack
 - **Claude AI**: Advanced reasoning for strategic context understanding
-- **Redis Stack**: High-performance vector database for strategic insights
+- **PostgreSQL + pgvector**: High-performance vector database for strategic insights
 - **React Dashboard**: Modern interface for strategic intelligence review
 - **Telegram Bot**: Secure, private communication channel for CEO
 
@@ -148,7 +150,8 @@ docker run --env-file .env.production guild-strategic-intelligence
 
 ### Security Considerations
 - Environment-based configuration for sensitive keys
-- Secure Redis Stack deployment
+- Secure PostgreSQL deployment with pgvector extension
+- Automatic database migrations on deployment
 - Private Telegram bot for CEO-only access
 - HTTPS-enabled strategic dashboard
 
