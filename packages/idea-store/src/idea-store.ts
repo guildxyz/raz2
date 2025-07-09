@@ -515,7 +515,7 @@ export class IdeaStore {
         searchQuery,
         {
           LIMIT: { from: 0, size: limit },
-          SORTBY: { BY: 'createdAt', DIRECTION: 'DESC' },
+          SORTBY: { BY: '$.createdAt', DIRECTION: 'DESC' },
           RETURN: ['$']
         }
       )
