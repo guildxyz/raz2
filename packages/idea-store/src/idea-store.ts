@@ -172,8 +172,8 @@ export class IdeaStore {
         tags: input.tags || [],
         userId: input.userId,
         chatId: input.chatId,
-        createdAt: timestamp,
-        updatedAt: timestamp,
+        createdAt: now,
+        updatedAt: now,
         vector: embeddingResponse.vector,
         reminders: []
       }
@@ -187,15 +187,33 @@ export class IdeaStore {
           message: reminder.message,
           isActive: true,
           isSent: false,
-          createdAt: timestamp,
-          updatedAt: timestamp
+          createdAt: now,
+          updatedAt: now
         }))
       }
 
-      await this.client.json.set(id, '$', ideaWithVector as any)
+      const ideaForStorage = {
+        ...ideaWithVector,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        reminders: ideaWithVector.reminders?.map(r => ({
+          ...r,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          scheduledFor: r.scheduledFor instanceof Date ? r.scheduledFor.getTime() : r.scheduledFor
+        }))
+      }
+
+      await this.client.json.set(id, '$', ideaForStorage as any)
 
       for (const reminder of ideaWithVector.reminders || []) {
-        await this.client.json.set(`reminder:${reminder.id}`, '$', reminder as any)
+        const reminderForStorage = {
+          ...reminder,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          scheduledFor: reminder.scheduledFor instanceof Date ? reminder.scheduledFor.getTime() : reminder.scheduledFor
+        }
+        await this.client.json.set(`reminder:${reminder.id}`, '$', reminderForStorage as any)
       }
 
       this.logger.info('Idea created successfully', {
@@ -290,17 +308,35 @@ export class IdeaStore {
           message: reminder.message,
           isActive: true,
           isSent: false,
-          createdAt: timestamp,
-          updatedAt: timestamp
+          createdAt: new Date(timestamp),
+          updatedAt: new Date(timestamp)
         }))
       }
 
-      ideaWithVector.updatedAt = timestamp
+      ideaWithVector.updatedAt = new Date(timestamp)
 
-      await this.client.json.set(key, '$', ideaWithVector as any)
+      const ideaForStorage = {
+        ...ideaWithVector,
+        createdAt: ideaWithVector.createdAt instanceof Date ? ideaWithVector.createdAt.getTime() : ideaWithVector.createdAt,
+        updatedAt: timestamp,
+        reminders: ideaWithVector.reminders?.map(r => ({
+          ...r,
+          createdAt: r.createdAt instanceof Date ? r.createdAt.getTime() : r.createdAt,
+          updatedAt: timestamp,
+          scheduledFor: r.scheduledFor instanceof Date ? r.scheduledFor.getTime() : r.scheduledFor
+        }))
+      }
+
+      await this.client.json.set(key, '$', ideaForStorage as any)
 
       for (const reminder of ideaWithVector.reminders || []) {
-        await this.client.json.set(`reminder:${reminder.id}`, '$', reminder as any)
+        const reminderForStorage = {
+          ...reminder,
+          createdAt: reminder.createdAt instanceof Date ? reminder.createdAt.getTime() : reminder.createdAt,
+          updatedAt: timestamp,
+          scheduledFor: reminder.scheduledFor instanceof Date ? reminder.scheduledFor.getTime() : reminder.scheduledFor
+        }
+        await this.client.json.set(`reminder:${reminder.id}`, '$', reminderForStorage as any)
       }
 
       this.logger.info('Idea updated successfully', {
@@ -360,19 +396,19 @@ export class IdeaStore {
         const filterParts: string[] = []
         
         if (filter.userId) {
-          filterParts.push(`@userId:${filter.userId}`)
+          filterParts.push(`@userId:"${filter.userId}"`)
         }
         if (filter.chatId) {
           filterParts.push(`@chatId:[${filter.chatId} ${filter.chatId}]`)
         }
         if (filter.category) {
-          filterParts.push(`@category:${filter.category}`)
+          filterParts.push(`@category:"${filter.category}"`)
         }
         if (filter.priority) {
-          filterParts.push(`@priority:${filter.priority}`)
+          filterParts.push(`@priority:"${filter.priority}"`)
         }
         if (filter.status) {
-          filterParts.push(`@status:${filter.status}`)
+          filterParts.push(`@status:"${filter.status}"`)
         }
         if (filter.tags && filter.tags.length > 0) {
           filterParts.push(`@tags:{${filter.tags.join('|')}}`)
@@ -483,19 +519,19 @@ export class IdeaStore {
         const filterParts: string[] = []
         
         if (filter.userId) {
-          filterParts.push(`@userId:${filter.userId}`)
+          filterParts.push(`@userId:"${filter.userId}"`)
         }
         if (filter.chatId) {
           filterParts.push(`@chatId:[${filter.chatId} ${filter.chatId}]`)
         }
         if (filter.category) {
-          filterParts.push(`@category:${filter.category}`)
+          filterParts.push(`@category:"${filter.category}"`)
         }
         if (filter.priority) {
-          filterParts.push(`@priority:${filter.priority}`)
+          filterParts.push(`@priority:"${filter.priority}"`)
         }
         if (filter.status) {
-          filterParts.push(`@status:${filter.status}`)
+          filterParts.push(`@status:"${filter.status}"`)
         }
 
         if (filterParts.length > 0) {
