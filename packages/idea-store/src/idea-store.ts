@@ -69,11 +69,14 @@ export class IdeaStore {
 
   private async createIndex(): Promise<void> {
     try {
+      // Check if index exists and drop it to recreate with updated schema
       try {
         await this.client.ft.info(this.config.indexName)
-        this.logger.info('Vector index already exists', { indexName: this.config.indexName })
-        return
+        this.logger.info('Existing index found, dropping to recreate with updated schema', { indexName: this.config.indexName })
+        await this.client.ft.dropIndex(this.config.indexName)
       } catch (error) {
+        // Index doesn't exist, which is fine
+        this.logger.info('No existing index found, creating new one', { indexName: this.config.indexName })
       }
 
       await this.client.ft.create(
@@ -119,6 +122,10 @@ export class IdeaStore {
             type: SchemaFieldTypes.NUMERIC,
             SORTABLE: true
           },
+          '$.updatedAt': {
+            type: SchemaFieldTypes.NUMERIC,
+            SORTABLE: true
+          },
           '$.vector': {
             type: SchemaFieldTypes.VECTOR,
             ALGORITHM: VectorAlgorithms.HNSW,
@@ -149,6 +156,7 @@ export class IdeaStore {
     try {
       const id = `idea:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const now = new Date()
+      const timestamp = now.getTime()
 
       const embeddingResponse = await this.embedding.generateEmbedding(
         `${input.title} ${input.content}`
@@ -164,8 +172,8 @@ export class IdeaStore {
         tags: input.tags || [],
         userId: input.userId,
         chatId: input.chatId,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: timestamp,
+        updatedAt: timestamp,
         vector: embeddingResponse.vector,
         reminders: []
       }
@@ -179,8 +187,8 @@ export class IdeaStore {
           message: reminder.message,
           isActive: true,
           isSent: false,
-          createdAt: now,
-          updatedAt: now
+          createdAt: timestamp,
+          updatedAt: timestamp
         }))
       }
 
@@ -197,6 +205,10 @@ export class IdeaStore {
       })
 
       const { vector, ...idea } = ideaWithVector
+      // Convert timestamps back to Date objects for the return value
+      idea.createdAt = new Date(idea.createdAt)
+      idea.updatedAt = new Date(idea.updatedAt)
+      
       return idea
     } catch (error) {
       this.logger.error('Failed to create idea', {
@@ -216,14 +228,16 @@ export class IdeaStore {
         return null
       }
 
-      const ideaWithVector = data[0] as unknown as IdeaWithVector
+      const ideaWithVector = data[0] as unknown as any
       const { vector, ...idea } = ideaWithVector
 
+      // Convert timestamps back to Date objects
       idea.createdAt = new Date(idea.createdAt)
       idea.updatedAt = new Date(idea.updatedAt)
 
+      // Convert reminder timestamps if they exist
       if (idea.reminders) {
-        idea.reminders = idea.reminders.map(reminder => ({
+        idea.reminders = idea.reminders.map((reminder: any) => ({
           ...reminder,
           createdAt: new Date(reminder.createdAt),
           updatedAt: new Date(reminder.updatedAt),
@@ -251,7 +265,7 @@ export class IdeaStore {
       }
 
       const ideaWithVector = existing[0] as unknown as IdeaWithVector
-      const now = new Date()
+      const timestamp = new Date().getTime()
 
       if (input.title) ideaWithVector.title = input.title
       if (input.content) ideaWithVector.content = input.content
@@ -276,19 +290,29 @@ export class IdeaStore {
           message: reminder.message,
           isActive: true,
           isSent: false,
-          createdAt: now,
-          updatedAt: now
+          createdAt: timestamp,
+          updatedAt: timestamp
         }))
       }
 
-      ideaWithVector.updatedAt = now
+      ideaWithVector.updatedAt = timestamp
 
       await this.client.json.set(key, '$', ideaWithVector as any)
 
-      this.logger.info('Idea updated successfully', { id: input.id })
+      for (const reminder of ideaWithVector.reminders || []) {
+        await this.client.json.set(`reminder:${reminder.id}`, '$', reminder as any)
+      }
+
+      this.logger.info('Idea updated successfully', {
+        id: ideaWithVector.id,
+        title: ideaWithVector.title
+      })
 
       const { vector, ...idea } = ideaWithVector
-      idea.updatedAt = now
+      // Convert timestamps back to Date objects for the return value
+      idea.createdAt = new Date(idea.createdAt)
+      idea.updatedAt = new Date(idea.updatedAt)
+      
       return idea
     } catch (error) {
       this.logger.error('Failed to update idea', {
@@ -390,14 +414,25 @@ export class IdeaStore {
 
       for (const doc of results.documents) {
         if (doc.value) {
-          const ideaWithVector = JSON.parse(doc.value['$'] as string) as IdeaWithVector
+          const ideaWithVector = JSON.parse(doc.value['$'] as string) as any
           const score = parseFloat(doc.id.split(':')[1] || '0')
           
           if (score >= threshold) {
             const { vector, ...idea } = ideaWithVector
             
+            // Convert timestamps back to Date objects
             idea.createdAt = new Date(idea.createdAt)
             idea.updatedAt = new Date(idea.updatedAt)
+
+            // Convert reminder timestamps if they exist
+            if (idea.reminders) {
+              idea.reminders = idea.reminders.map((reminder: any) => ({
+                ...reminder,
+                createdAt: new Date(reminder.createdAt),
+                updatedAt: new Date(reminder.updatedAt),
+                scheduledFor: new Date(reminder.scheduledFor)
+              }))
+            }
 
             ideas.push({
               idea,
@@ -489,11 +524,22 @@ export class IdeaStore {
 
       for (const doc of results.documents) {
         if (doc.value) {
-          const ideaWithVector = JSON.parse(doc.value['$'] as string) as IdeaWithVector
+          const ideaWithVector = JSON.parse(doc.value['$'] as string) as any
           const { vector, ...idea } = ideaWithVector
           
+          // Convert timestamps back to Date objects
           idea.createdAt = new Date(idea.createdAt)
           idea.updatedAt = new Date(idea.updatedAt)
+
+          // Convert reminder timestamps if they exist
+          if (idea.reminders) {
+            idea.reminders = idea.reminders.map((reminder: any) => ({
+              ...reminder,
+              createdAt: new Date(reminder.createdAt),
+              updatedAt: new Date(reminder.updatedAt),
+              scheduledFor: new Date(reminder.scheduledFor)
+            }))
+          }
 
           ideas.push(idea)
         }
@@ -533,7 +579,9 @@ export class IdeaStore {
       for (const key of reminderKeys) {
         const data = await this.client.json.get(key, { path: '$' })
         if (data && Array.isArray(data) && data.length > 0) {
-          const reminder = data[0] as Reminder
+          const reminder = data[0] as any
+          
+          // Convert timestamps back to Date objects
           reminder.scheduledFor = new Date(reminder.scheduledFor)
           reminder.createdAt = new Date(reminder.createdAt)
           reminder.updatedAt = new Date(reminder.updatedAt)
@@ -556,8 +604,10 @@ export class IdeaStore {
   async markReminderSent(reminderId: string): Promise<void> {
     try {
       const key = reminderId.startsWith('reminder:') ? reminderId : `reminder:${reminderId}`
+      const timestamp = new Date().getTime()
+      
       await this.client.json.set(key, '$.isSent', true)
-      await this.client.json.set(key, '$.updatedAt', new Date())
+      await this.client.json.set(key, '$.updatedAt', timestamp)
       
       this.logger.info('Reminder marked as sent', { reminderId })
     } catch (error) {
