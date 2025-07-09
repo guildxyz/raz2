@@ -132,25 +132,6 @@ export const createIdeaManagementTools = (): Tool[] => [
       },
       required: []
     }
-  },
-  {
-    name: 'forget_idea',
-    description: 'Delete/forget a specific idea permanently. Use this when the user wants to remove, delete, or forget an idea. The user must provide either an idea ID or enough details to identify the specific idea.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        idea_id: {
-          type: 'string',
-          description: 'The unique ID of the idea to delete (if known)'
-        },
-        search_query: {
-          type: 'string',
-          description: 'Search query to find the idea to delete (if ID is not known, minimum 2 characters)',
-          minLength: 2
-        }
-      },
-      required: []
-    }
   }
 ]
 
@@ -180,9 +161,6 @@ export class ToolExecutor {
           break
         case 'list_all_ideas':
           result = await this.listAllIdeas(toolCall.input, userId)
-          break
-        case 'forget_idea':
-          result = await this.forgetIdea(toolCall.input, userId)
           break
         default:
           throw new Error(`Unknown tool: ${toolCall.name}`)
@@ -327,7 +305,7 @@ No ideas found matching "${query}"${category ? ` in category "${category}"` : ''
       const relevanceScore = Math.round(result.score * 100)
       const date = new Date(idea.createdAt).toLocaleDateString()
       
-      response += `**${index + 1}. ${idea.title}** (${relevanceScore}% match)\n`
+      response += `**${index + 1}. ${idea.title}** (${relevanceScore}% match) [ID: ${idea.id}]\n`
       response += `📋 ${idea.category} | ${idea.priority} priority | 📅 ${date}\n`
       response += `💡 ${idea.content.substring(0, 120)}${idea.content.length > 120 ? '...' : ''}\n`
       if (idea.tags.length > 0) {
@@ -375,7 +353,7 @@ No ideas found matching "${query}"${category ? ` in category "${category}"` : ''
       const createdDate = new Date(idea.createdAt).toLocaleDateString()
       const priorityIcon = idea.priority === 'urgent' ? '🔴' : idea.priority === 'high' ? '🟠' : idea.priority === 'medium' ? '🟡' : '🟢'
       
-      response += `**${index + 1}. ${idea.title}** ${priorityIcon}\n`
+      response += `**${index + 1}. ${idea.title}** ${priorityIcon} [ID: ${idea.id}]\n`
       response += `📋 ${idea.category} | 📅 ${createdDate} | Status: ${idea.status}\n`
       response += `💭 ${idea.content.substring(0, 100)}${idea.content.length > 100 ? '...' : ''}\n`
       if (idea.tags.length > 0) {
@@ -384,90 +362,8 @@ No ideas found matching "${query}"${category ? ` in category "${category}"` : ''
       response += '\n'
     })
 
+    response += '\n💡 **Use /forget [ID] to delete an idea** (e.g., /forget abc123)'
+
     return response
-  }
-
-  private async forgetIdea(input: any, userId: string): Promise<string> {
-    const { idea_id, search_query } = input
-
-    if (!idea_id && !search_query) {
-      return `❌ **Missing Information**
-
-Please provide either:
-• An idea ID: "Forget idea abc123"
-• Search terms: "Forget the idea about mobile app redesign"
-
-**Examples:**
-• "Delete the idea with ID abc123"
-• "Remove the strategic planning idea"
-• "Forget my product roadmap thoughts"`
-    }
-
-    let targetIdeaId: string | null = null
-    let targetIdeaTitle: string | null = null
-
-    if (idea_id) {
-      targetIdeaId = idea_id
-    } else if (search_query) {
-      const searchResults = await this.ideaService.searchRelevantIdeas(search_query, userId, 5)
-      
-      if (searchResults.length === 0) {
-        return `🔍 **No Ideas Found**
-
-No ideas found matching "${search_query}". Nothing to forget.
-
-**Try:**
-• Different search terms
-• Check spelling
-• Use broader keywords`
-      }
-
-      if (searchResults.length > 1) {
-        const resultsText = searchResults.map((result: any, index: number) => {
-          const idea = result.idea
-          const relevanceScore = Math.round(result.score * 100)
-          return `**${index + 1}. ${idea.title}** (${relevanceScore}% match)\n   📋 ${idea.category} | ${idea.priority} priority\n   💡 ${idea.content.substring(0, 80)}${idea.content.length > 80 ? '...' : ''}`
-        }).join('\n\n')
-
-        return `🔍 **Multiple Ideas Found**
-
-Found ${searchResults.length} ideas matching "${search_query}". Please be more specific:
-
-${resultsText}
-
-**Next Steps:**
-• Use a more specific search query
-• Provide the exact idea ID
-• Include more details to narrow down the search`
-      }
-
-      targetIdeaId = searchResults[0].idea.id
-      targetIdeaTitle = searchResults[0].idea.title
-    }
-
-    if (!targetIdeaId) {
-      return '❌ **Cannot Identify Idea**\n\nCould not identify the idea to forget. Please provide more specific details.'
-    }
-
-    const success = await this.ideaService.deleteIdea(targetIdeaId, userId)
-
-    if (success) {
-      return `✅ **Idea Forgotten**
-
-${targetIdeaTitle ? `"${targetIdeaTitle}"` : 'The idea'} has been permanently deleted from your strategic intelligence repository.
-
-🗑️ **This action cannot be undone.**`
-    } else {
-      return `❌ **Failed to Forget Idea**
-
-${targetIdeaTitle ? `"${targetIdeaTitle}"` : 'The idea'} could not be deleted.
-
-**Possible reasons:**
-• The idea doesn't exist
-• You don't have permission to delete it  
-• A system error occurred
-
-Please verify the idea ID and try again.`
-    }
   }
 } 

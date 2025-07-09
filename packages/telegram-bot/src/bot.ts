@@ -306,7 +306,7 @@ export class TelegramBotService {
           const date = idea.createdAt.toLocaleDateString();
           const preview = idea.title || idea.content.substring(0, 60) + (idea.content.length > 60 ? '...' : '');
           const priority = idea.priority === 'urgent' ? '🔴' : idea.priority === 'high' ? '🟠' : idea.priority === 'medium' ? '🟡' : '🟢';
-          return `${index + 1}. ${priority} ${preview} (${date})`;
+          return `${index + 1}. ${priority} ${preview} [ID: ${idea.id}] (${date})`;
         })
         .join('\n');
 
@@ -319,7 +319,8 @@ ${categoriesText}
 ${recentIdeas}
 
 Use /search <query> to find specific strategic insights
-Use /capture <idea> to manually save strategic information`;
+Use /capture <idea> to manually save strategic information
+Use /forget <ID> to delete an idea (e.g., /forget abc123)`;
 
       await this.sendMessage(chatId, message);
     } catch (error) {
@@ -361,7 +362,7 @@ Use /capture <idea> to manually save strategic information`;
       );
 
       if (idea) {
-        await this.sendMessage(chatId, `✅ Strategic insight captured: "${content}"\n\nCategory: ${idea.category}\nPriority: ${idea.priority}`);
+        await this.sendMessage(chatId, `✅ Strategic insight captured: "${content}"\n\nCategory: ${idea.category}\nPriority: ${idea.priority}\nID: ${idea.id}`);
         this.logger.info('User manually captured strategic idea', {
           chatId,
           userId,
@@ -383,7 +384,7 @@ Use /capture <idea> to manually save strategic information`;
   }
 
   private async handleForgetCommand(processed: ProcessedMessage): Promise<void> {
-    const { chatId, userId } = processed;
+    const { chatId, userId, command } = processed;
 
     if (!this.ideaService.isIdeaEnabled()) {
       await this.sendMessage(chatId, '💡 Strategic intelligence feature is not enabled');
@@ -395,16 +396,59 @@ Use /capture <idea> to manually save strategic information`;
       return;
     }
 
-    this.conversations.delete(chatId);
+    if (!command?.args || command.args.length === 0) {
+      await this.sendMessage(chatId, `❌ Please provide idea ID to forget
+Usage: /forget <idea_id>
+Example: /forget abc123
+
+Use /ideas to see your ideas with their IDs`);
+      return;
+    }
+
+    const ideaId = command.args[0];
     
-    await this.sendMessage(chatId, `🧠 Conversation cleared! 
+    try {
+      this.logger.info('Attempting to delete idea', {
+        chatId,
+        userId,
+        ideaId
+      });
 
-Your strategic intelligence repository remains intact. To manage strategic ideas:
-• /ideas - View your strategic ideas
-• /search <query> - Find specific strategic insights
-• /dashboard - Access strategic intelligence dashboard
+      const success = await this.ideaService.deleteIdea(ideaId, userId.toString());
 
-Strategic insights are preserved for long-term strategic planning.`);
+      if (success) {
+        await this.sendMessage(chatId, `✅ **Idea Forgotten**
+
+Idea with ID "${ideaId}" has been permanently deleted from your strategic intelligence repository.
+
+🗑️ **This action cannot be undone.**`);
+        
+        this.logger.info('Successfully deleted idea', {
+          chatId,
+          userId,
+          ideaId
+        });
+      } else {
+        await this.sendMessage(chatId, `❌ **Failed to Delete Idea**
+
+Could not delete idea with ID "${ideaId}".
+
+**Possible reasons:**
+• The idea doesn't exist
+• You don't have permission to delete it
+• Invalid idea ID format
+
+Use /ideas to see your ideas with their correct IDs`);
+      }
+    } catch (error) {
+      this.logger.error('Error in forget command', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        chatId,
+        userId,
+        ideaId
+      });
+      await this.sendMessage(chatId, '❌ Error deleting strategic idea');
+    }
   }
 
   private async handleSearchCommand(processed: ProcessedMessage): Promise<void> {
@@ -446,14 +490,16 @@ Strategic insights are preserved for long-term strategic planning.`);
           const category = result.idea.category;
           const priority = result.idea.priority === 'urgent' ? '🔴' : result.idea.priority === 'high' ? '🟠' : result.idea.priority === 'medium' ? '🟡' : '🟢';
           const title = result.idea.title || result.idea.content.substring(0, 50) + '...';
-          return `${index + 1}. ${priority} ${title}
+          return `${index + 1}. ${priority} ${title} [ID: ${result.idea.id}]
    📊 ${score}% match | 📅 ${date} | 🏷️ ${category}`;
         })
         .join('\n\n');
 
       await this.sendMessage(chatId, `🔍 Strategic insights for: "${query}"
 
-${searchResults}`);
+${searchResults}
+
+Use /forget <ID> to delete an idea`);
     } catch (error) {
       this.logger.error('Error in search command', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -690,12 +736,12 @@ What strategic challenge would you like to discuss?`;
 /ideas - View your strategic ideas and insights
 /capture <idea> - Manually capture strategic insight
 /search <query> - Search your strategic knowledge base
-/forget - Clear conversation (strategic insights preserved)
+/forget <ID> - Delete a specific idea by ID (e.g., /forget abc123)
 
 🧠 AI can now also:
-• Forget specific ideas: "Forget the mobile app idea"
-• Delete ideas by ID: "Delete idea abc123"
-• Auto-generate titles and descriptions for new ideas` : '';
+• Auto-generate titles and descriptions for new ideas
+• Intelligently capture strategic insights during conversations
+• Search and retrieve your strategic knowledge base` : '';
 
     const examples = `
 
