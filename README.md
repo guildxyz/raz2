@@ -1,185 +1,188 @@
-# Raz2 - Claude Telegram Bot with Memory
+# Guild.xyz Strategic Intelligence System
 
-A sophisticated Telegram bot powered by Claude AI with persistent memory capabilities using Redis Stack and vector search.
+> **Strategic Business Intelligence for Guild.xyz CEO**  
+> Supporting strategic development, product design, and enterprise sales for a platform with 6 million+ users and thousands of clients.
 
-## Features
+## Purpose
 
-### Core Functionality
-- **Claude AI Integration**: Advanced conversational AI with tool support
-- **MCP Tool Support**: Extensible tool system (calculator, weather, time, echo)
-- **Telegram Bot**: Full-featured Telegram integration
-- **Memory System**: Persistent memory with semantic search using Redis Stack
-- **Web UI**: Modern web interface for managing memory store data
-- **TypeScript Monorepo**: Well-structured, type-safe codebase
+This system empowers the CEO of Guild.xyz to:
 
-### Memory Capabilities  
-- **Semantic Search**: Find relevant memories using vector similarity
-- **Automatic Storage**: Conversations stored automatically
-- **Manual Memory**: Save important information with `/remember`
-- **Memory Management**: View, search, and manage stored memories
-- **Context-Aware**: Retrieves relevant memories for better responses
+- **Strategic Development**: Capture, organize, and recall strategic insights and decisions
+- **Product Design**: Track product ideas, user feedback, and technical considerations  
+- **Enterprise Sales**: Manage client insights, deal intelligence, and competitive analysis
+- **Business Intelligence**: Leverage AI-powered organization and retrieval of business-critical information
+
+## Core Features
+
+### 🧠 Strategic Intelligence Hub
+- **AI-Powered Idea Capture**: Automatically categorize and organize strategic thoughts via Telegram
+- **Semantic Search**: Find relevant insights using natural language queries
+- **Smart Reminders**: Schedule follow-ups on critical strategic initiatives
+- **Context-Aware Retrieval**: Get relevant historical context for informed decision making
+
+### 🎯 Business Categories
+- **Strategy**: Long-term vision, market positioning, competitive moves
+- **Product**: Feature ideas, user experience insights, technical architecture  
+- **Sales**: Enterprise client insights, deal intelligence, pricing strategies
+- **Partnerships**: Strategic alliances, integration opportunities
+- **Competitive**: Competitor analysis, market movements
+- **Market**: Industry trends, user behavior, market opportunities
+- **Team**: Organizational insights, hiring, culture development
+- **Operations**: Process improvements, efficiency gains
+
+### 📊 Strategic Dashboard
+- **Business Intelligence View**: Web interface for reviewing and managing strategic ideas
+- **Priority Management**: Track urgent vs. long-term strategic initiatives
+- **Status Tracking**: Monitor progress from idea to execution
+- **Analytics**: Insights into strategic focus areas and decision patterns
 
 ## Quick Start
 
 ### Prerequisites
-- Bun or Node.js 18+
-- Telegram Bot Token
-- Claude API Key (Anthropic)
-- Redis Stack (optional, for memory features)
-- OpenAI API Key (optional, for memory embeddings)
+- Telegram Bot Token (for secure CEO communication)
+- Claude API Key (Anthropic) for AI intelligence
+- Redis Stack (for strategic data persistence)
+- OpenAI API Key (for semantic search capabilities)
 
 ### Installation
 
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd raz2
+cd guild-strategic-intelligence
 
 # Install dependencies
 bun install
 
-# Set up environment
+# Set up environment variables
 cp .env.example .env
-# Edit .env with your API keys
+# Configure with your API keys and settings
 
-# Build all packages
+# Build the system
 bun run build
 
-# Start the bot
+# Start the strategic intelligence bot
 bun run start-bot
 ```
 
-### Environment Variables
+### Environment Configuration
 
-#### Required
 ```bash
+# Core Requirements
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ANTHROPIC_API_KEY=your_anthropic_api_key
-```
 
-#### Optional (for enhanced features)
-```bash
-# Weather functionality
-WEATHER_API_KEY=your_openweather_api_key
-
-# Memory functionality (requires both)
+# Strategic Intelligence Backend
 REDIS_URL=redis://localhost:6379
 OPENAI_API_KEY=your_openai_api_key
-
-# Memory configuration (optional)
-MEMORY_INDEX_NAME=memories
+IDEA_INDEX_NAME=guild_strategic_ideas
 EMBEDDING_MODEL=text-embedding-3-small
 
-# Web UI configuration (optional)
+# Strategic Dashboard
 WEB_SERVER_ENABLED=true
 WEB_SERVER_PORT=3000
 WEB_SERVER_HOST=0.0.0.0
 ```
 
-## Memory Commands
+## Strategic Commands
 
-When memory is enabled, the bot supports these commands:
+The CEO interface supports these strategic operations:
 
-- `/memories` - View your stored memories and stats
-- `/remember <text>` - Save important information
-- `/search <query>` - Search your memories semantically  
-- `/forget` - Clear conversation (memories preserved)
-- `/ui` or `/web` - Get the web interface URL for memory management
+### 💡 Strategic Capture
+- **Natural Conversation**: AI automatically categorizes and stores strategic insights
+- **Manual Capture**: Save specific strategic thoughts with context
+- **Client Insights**: Record enterprise client feedback and deal intelligence
+- **Product Ideas**: Capture and prioritize product development insights
 
-## Web UI
+### 🔍 Strategic Intelligence
+- **Smart Search**: Find relevant strategic context using natural language
+- **Historical Insights**: Access past strategic decisions and their outcomes
+- **Trend Analysis**: Identify patterns in strategic thinking and market responses
+- **Reminder System**: Get prompted on follow-up actions for strategic initiatives
 
-The bot includes a modern web interface for managing memory store data:
+### 📈 Strategic Dashboard
+- **Access Dashboard**: Use `/ui` command to get the strategic dashboard URL
+- **Review Progress**: Track strategic initiatives from conception to execution
+- **Analyze Patterns**: Understand strategic decision-making trends
+- **Export Insights**: Share strategic intelligence with key stakeholders
+
+## Strategic Dashboard
+
+The web interface provides enterprise-grade strategic intelligence:
 
 ### Features
-- **Spreadsheet View**: Display all memories in a sortable table
-- **Advanced Filtering**: Filter by user ID, category, chat ID, and tags
-- **Real-time Search**: Search across memory content, categories, and tags
-- **Memory Management**: Delete memories directly from the interface
-- **Statistics Dashboard**: View comprehensive stats about your memory store
-- **Responsive Design**: Works on desktop and mobile devices
+- **Strategic Overview**: High-level view of all strategic initiatives
+- **Priority Matrix**: Visualize urgent vs. important strategic items
+- **Category Analysis**: Understand strategic focus distribution
+- **Search & Filter**: Advanced filtering by priority, status, category, and timeline
+- **Strategic Context**: Rich context for each strategic decision or insight
+- **Reminder Management**: Track and manage strategic follow-ups
 
-### Accessing the Web UI
-1. Enable the web server by setting `WEB_SERVER_ENABLED=true` in your environment
-2. Start the bot with `bun run start-bot`
-3. Use the `/ui` command in Telegram to get the web interface URL
-4. Open the URL in your browser to access the interface
+### Access
+1. Start the strategic intelligence system
+2. Use `/ui` command in Telegram to get secure dashboard URL
+3. Access comprehensive strategic intelligence interface
 
-### Configuration
+## System Architecture
+
+### Strategic Intelligence Stack
+- **Claude AI**: Advanced reasoning for strategic context understanding
+- **Redis Stack**: High-performance vector database for strategic insights
+- **React Dashboard**: Modern interface for strategic intelligence review
+- **Telegram Bot**: Secure, private communication channel for CEO
+
+### Strategic Data Organization
+- **Vector Embeddings**: Semantic understanding of strategic content
+- **Smart Categorization**: Automatic classification of business insights
+- **Temporal Intelligence**: Time-aware strategic context and reminders
+- **Relationship Mapping**: Connect related strategic initiatives and insights
+
+## Deployment for Enterprise
+
+### Production Deployment
 ```bash
-# Enable web server (default: true)
-WEB_SERVER_ENABLED=true
-
-# Web server port (default: 3000)
-WEB_SERVER_PORT=3000
-
-# Web server host (default: 0.0.0.0)
-WEB_SERVER_HOST=0.0.0.0
+# Enterprise-grade deployment
+docker build -t guild-strategic-intelligence .
+docker run --env-file .env.production guild-strategic-intelligence
 ```
 
-The web UI automatically connects to the same memory store as the bot, no additional configuration needed.
+### Security Considerations
+- Environment-based configuration for sensitive keys
+- Secure Redis Stack deployment
+- Private Telegram bot for CEO-only access
+- HTTPS-enabled strategic dashboard
 
-## Package Structure
+## Strategic Packages
 
-- **`packages/shared`** - Common utilities and types
-- **`packages/claude-api`** - Claude AI integration with tool support
-- **`packages/mcp-server`** - MCP tool server implementation
-- **`packages/telegram-bot`** - Telegram bot with memory integration and web server
-- **`packages/memory-store`** - Redis Stack vector memory system
-- **`packages/memory-ui`** - Modern React web interface for memory management
+- **`packages/shared`** - Common strategic intelligence types and utilities
+- **`packages/claude-api`** - AI integration for strategic reasoning
+- **`packages/telegram-bot`** - Secure CEO communication interface
+- **`packages/idea-store`** - Strategic intelligence persistence and retrieval
+- **`packages/idea-ui`** - Strategic dashboard for business intelligence
 
-## Memory System Architecture
+## Supporting Guild.xyz Growth
 
-The memory system uses:
-- **Redis Stack**: Vector database with search capabilities
-- **OpenAI Embeddings**: Semantic understanding of content
-- **Automatic Context**: Relevant memories included in conversations
-- **Smart Storage**: Filters meaningful content for storage
+This system directly supports Guild.xyz's mission by:
+
+- **Scaling Strategic Thinking**: Handle the complexity of managing 6M+ users
+- **Enterprise Sales Intelligence**: Track and optimize enterprise client relationships
+- **Product Strategy Alignment**: Ensure product decisions align with strategic vision
+- **Competitive Advantage**: Leverage AI for strategic intelligence and faster decision-making
 
 ## Development
 
 ```bash
-# Install dependencies
+# Development workflow
 bun install
-
-# Build all packages
 bun run build
-
-# Start in development mode
 bun run dev
 
-# Type checking
+# Quality assurance
 bun run type-check
-
-# Linting
 bun run lint
 ```
 
-## Deployment
+---
 
-The bot is designed for easy deployment to platforms like Railway, Heroku, or any Docker-compatible environment.
-
-### Railway Deployment
-1. Connect your GitHub repository
-2. Set environment variables in Railway dashboard
-3. Deploy automatically on push
-
-### Docker Support
-```bash
-# Build Docker image
-docker build -t raz2-bot .
-
-# Run with environment file
-docker run --env-file .env raz2-bot
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details. 
+**Built for Guild.xyz Strategic Excellence**  
+*Empowering strategic decision-making for a platform serving millions of users and thousands of enterprise clients.* 

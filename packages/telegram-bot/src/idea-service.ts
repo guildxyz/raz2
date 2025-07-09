@@ -1,0 +1,399 @@
+import { IdeaStore, type Idea, type IdeaSearchResult, type CreateIdeaInput, type Reminder } from '@raz2/idea-store'
+import { createLogger } from '@raz2/shared'
+
+export class IdeaService {
+  private ideaStore: IdeaStore | null = null
+  private logger = createLogger('idea-service')
+  private isEnabled = false
+  private isInitialized = false
+
+  constructor(ideaStore?: IdeaStore) {
+    if (ideaStore) {
+      this.ideaStore = ideaStore
+      this.isEnabled = true
+      this.logger.info('Idea service initialized with store')
+    } else {
+      this.logger.info('Idea service initialized without store (disabled)')
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isEnabled || !this.ideaStore || this.isInitialized) {
+      return
+    }
+
+    try {
+      await this.ideaStore.initialize()
+      this.isInitialized = true
+      this.logger.info('Idea store initialized successfully')
+    } catch (error) {
+      this.logger.error('Failed to initialize idea store', {
+        error: error instanceof Error ? error : new Error(String(error))
+      })
+      this.isEnabled = false
+      throw error
+    }
+  }
+
+  async captureStrategicIdea(
+    title: string,
+    content: string,
+    userId: string,
+    chatId: number,
+    category: 'strategy' | 'product' | 'sales' | 'partnerships' | 'competitive' | 'market' | 'team' | 'operations' = 'strategy',
+    priority: 'low' | 'medium' | 'high' | 'urgent' = 'medium',
+    tags: string[] = [],
+    reminderDate?: Date
+  ): Promise<Idea | null> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return null
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const ideaInput: CreateIdeaInput = {
+        title,
+        content,
+        category,
+        priority,
+        tags: [...tags, 'telegram', 'captured'],
+        userId,
+        chatId,
+        reminders: reminderDate ? [{
+          type: 'once',
+          scheduledFor: reminderDate,
+          message: `Review strategic idea: ${title}`
+        }] : []
+      }
+
+      const idea = await this.ideaStore.createIdea(ideaInput)
+
+      this.logger.info('Captured strategic idea', {
+        ideaId: idea.id,
+        title,
+        category,
+        priority,
+        userId,
+        chatId,
+        hasReminder: !!reminderDate
+      })
+
+      return idea
+    } catch (error) {
+      this.logger.error('Failed to capture strategic idea', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        title,
+        category,
+        userId,
+        chatId
+      })
+      return null
+    }
+  }
+
+  async captureClientInsight(
+    content: string,
+    userId: string,
+    chatId: number,
+    clientName?: string,
+    dealSize?: string,
+    priority: 'low' | 'medium' | 'high' | 'urgent' = 'high'
+  ): Promise<Idea | null> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return null
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const title = clientName ? `Client Insight: ${clientName}` : 'Client Insight'
+      const tags = ['client-insight', 'sales']
+      if (clientName) tags.push(clientName.toLowerCase().replace(/\s+/g, '-'))
+      if (dealSize) tags.push(`deal-${dealSize.toLowerCase()}`)
+
+      const idea = await this.ideaStore.createIdea({
+        title,
+        content,
+        category: 'sales',
+        priority,
+        tags,
+        userId,
+        chatId
+      })
+
+      this.logger.info('Captured client insight', {
+        ideaId: idea.id,
+        clientName,
+        dealSize,
+        priority,
+        userId,
+        chatId
+      })
+
+      return idea
+    } catch (error) {
+      this.logger.error('Failed to capture client insight', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        clientName,
+        userId,
+        chatId
+      })
+      return null
+    }
+  }
+
+  async captureProductIdea(
+    title: string,
+    content: string,
+    userId: string,
+    chatId: number,
+    userImpact?: string,
+    technicalComplexity?: string,
+    priority: 'low' | 'medium' | 'high' | 'urgent' = 'medium'
+  ): Promise<Idea | null> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return null
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const tags = ['product-idea', 'guild-platform']
+      if (userImpact) tags.push(`impact-${userImpact.toLowerCase()}`)
+      if (technicalComplexity) tags.push(`complexity-${technicalComplexity.toLowerCase()}`)
+
+      const idea = await this.ideaStore.createIdea({
+        title,
+        content,
+        category: 'product',
+        priority,
+        tags,
+        userId,
+        chatId
+      })
+
+      this.logger.info('Captured product idea', {
+        ideaId: idea.id,
+        title,
+        userImpact,
+        technicalComplexity,
+        priority,
+        userId,
+        chatId
+      })
+
+      return idea
+    } catch (error) {
+      this.logger.error('Failed to capture product idea', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        title,
+        userId,
+        chatId
+      })
+      return null
+    }
+  }
+
+  async searchRelevantIdeas(
+    query: string,
+    userId: string,
+    limit: number = 5,
+    category?: 'strategy' | 'product' | 'sales' | 'partnerships' | 'competitive' | 'market' | 'team' | 'operations'
+  ): Promise<IdeaSearchResult[]> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return []
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const results = await this.ideaStore.searchIdeas(query, {
+        limit,
+        threshold: 0.1,
+        filter: { 
+          userId,
+          category
+        }
+      })
+
+      this.logger.debug('Retrieved relevant ideas', {
+        query: query.substring(0, 50),
+        userId,
+        category,
+        resultCount: results.length,
+        scores: results.map((r: IdeaSearchResult) => r.score.toFixed(3))
+      })
+
+      return results
+    } catch (error) {
+      this.logger.error('Failed to search ideas', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        userId,
+        query: query.substring(0, 50),
+        category
+      })
+      return []
+    }
+  }
+
+  async getUserIdeas(userId: string, limit: number = 20): Promise<Idea[]> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return []
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const ideas = await this.ideaStore.listIdeas({ userId }, limit)
+      
+      this.logger.info('Retrieved user ideas', {
+        userId,
+        count: ideas.length
+      })
+
+      return ideas
+    } catch (error) {
+      this.logger.error('Failed to get user ideas', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        userId
+      })
+      return []
+    }
+  }
+
+  async deleteIdea(ideaId: string, userId: string): Promise<boolean> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return false
+    }
+
+    try {
+      const idea = await this.ideaStore.getIdea(ideaId)
+      if (!idea || idea.userId !== userId) {
+        this.logger.warn('Attempted to delete idea not owned by user', {
+          ideaId,
+          userId,
+          ideaExists: !!idea,
+          ideaUserId: idea?.userId
+        })
+        return false
+      }
+
+      const deleted = await this.ideaStore.deleteIdea(ideaId)
+      
+      this.logger.info('Deleted idea', {
+        ideaId,
+        userId,
+        success: deleted
+      })
+
+      return deleted
+    } catch (error) {
+      this.logger.error('Failed to delete idea', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        ideaId,
+        userId
+      })
+      return false
+    }
+  }
+
+  async getDueReminders(): Promise<Reminder[]> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return []
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const reminders = await this.ideaStore.getDueReminders()
+      
+      this.logger.info('Retrieved due reminders', {
+        count: reminders.length
+      })
+
+      return reminders
+    } catch (error) {
+      this.logger.error('Failed to get due reminders', {
+        error: error instanceof Error ? error : new Error(String(error))
+      })
+      return []
+    }
+  }
+
+  async markReminderSent(reminderId: string): Promise<void> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return
+    }
+
+    try {
+      await this.ensureInitialized()
+      await this.ideaStore.markReminderSent(reminderId)
+      
+      this.logger.info('Marked reminder as sent', { reminderId })
+    } catch (error) {
+      this.logger.error('Failed to mark reminder as sent', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        reminderId
+      })
+    }
+  }
+
+  buildStrategicContext(ideas: IdeaSearchResult[], maxLength: number = 1000): string {
+    if (ideas.length === 0) {
+      return ''
+    }
+
+    const context = ideas
+      .slice(0, 5)
+      .map((result, index) => {
+        const idea = result.idea
+        return `${index + 1}. [${idea.category.toUpperCase()}] ${idea.title} (Priority: ${idea.priority})\n   ${idea.content.substring(0, 200)}${idea.content.length > 200 ? '...' : ''}`
+      })
+      .join('\n\n')
+
+    if (context.length <= maxLength) {
+      return context
+    }
+
+    return context.substring(0, maxLength - 3) + '...'
+  }
+
+  async getStats(userId?: string): Promise<{ count: number; categories: Record<string, number> }> {
+    if (!this.isEnabled || !this.ideaStore) {
+      return { count: 0, categories: {} }
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const ideas = await this.ideaStore.listIdeas(userId ? { userId } : undefined, 1000)
+      
+      const categories = ideas.reduce((acc: Record<string, number>, idea: Idea) => {
+        acc[idea.category] = (acc[idea.category] || 0) + 1
+        return acc
+      }, {})
+
+      return {
+        count: ideas.length,
+        categories
+      }
+    } catch (error) {
+      this.logger.error('Failed to get stats', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        userId
+      })
+      return { count: 0, categories: {} }
+    }
+  }
+
+  isIdeaEnabled(): boolean {
+    return this.isEnabled
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.ideaStore) {
+      await this.ideaStore.disconnect()
+    }
+  }
+} 

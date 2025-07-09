@@ -15,7 +15,7 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     newsApiKey: process.env.NEWS_API_KEY,
     redisUrl: process.env.REDIS_URL,
     openaiApiKey: process.env.OPENAI_API_KEY,
-    memoryIndexName: process.env.MEMORY_INDEX_NAME,
+    ideaIndexName: process.env.IDEA_INDEX_NAME,
     embeddingModel: process.env.EMBEDDING_MODEL,
     webServerEnabled: process.env.WEB_SERVER_ENABLED,
     webServerPort: process.env.WEB_SERVER_PORT,

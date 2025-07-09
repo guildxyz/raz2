@@ -1,8 +1,8 @@
 {
-  "name": "@raz2/monorepo",
+  "name": "@raz2/strategic-intelligence",
   "version": "1.0.0",
   "private": true,
-  "description": "Replicating the CEO of Guild.xyz",
+  "description": "Strategic Business Intelligence System for Guild.xyz CEO - Supporting strategic decision making, product design, and enterprise sales for a 6M+ user platform",
   "workspaces": [
     "packages/*"
   ],
@@ -13,7 +13,7 @@
     "dev": "bun run --filter='*' dev",
     "start": "cd packages/telegram-bot && bun run start",
     "start-bot": "./scripts/run.sh",
-    "start-ui": "cd packages/memory-ui && bun run dev",
+    "start-ui": "cd packages/idea-ui && bun run dev",
     "test": "bun run --filter='*' test",
     "lint": "bun run --filter='*' lint",
     "type-check": "bun run --filter='*' type-check",

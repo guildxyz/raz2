@@ -55,12 +55,38 @@ export const HEALTH_CHECK_ENDPOINTS = {
   MCP_SERVER: '/health'
 } as const
 
-export const MEMORY_STORE_CONFIG = {
-  DEFAULT_INDEX_NAME: 'memories',
+export const IDEA_STORE_CONFIG = {
+  DEFAULT_INDEX_NAME: 'ideas',
   DEFAULT_VECTOR_DIMENSION: 1536,
   DEFAULT_EMBEDDING_MODEL: 'text-embedding-3-small',
   SEARCH_LIMIT: 10,
   SIMILARITY_THRESHOLD: 0.1
+} as const
+
+export const BUSINESS_CATEGORIES = {
+  STRATEGY: 'strategy',
+  PRODUCT: 'product',
+  SALES: 'sales',
+  PARTNERSHIPS: 'partnerships',
+  COMPETITIVE: 'competitive',
+  MARKET: 'market',
+  TEAM: 'team',
+  OPERATIONS: 'operations'
+} as const
+
+export const PRIORITY_LEVELS = {
+  URGENT: 'urgent',
+  HIGH: 'high', 
+  MEDIUM: 'medium',
+  LOW: 'low'
+} as const
+
+export const REMINDER_TYPES = {
+  ONCE: 'once',
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  MONTHLY: 'monthly',
+  CUSTOM: 'custom'
 } as const
 
 export const REDIS_CONFIG = {

@@ -1,8 +1,8 @@
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadEnvironmentConfig, createLogger, MEMORY_STORE_CONFIG } from '@raz2/shared';
-import type { MemoryStoreConfig } from '@raz2/memory-store';
+import { loadEnvironmentConfig, createLogger, IDEA_STORE_CONFIG } from '@raz2/shared';
+import type { IdeaStoreConfig } from '@raz2/idea-store';
 import { TelegramBotService } from './bot.js';
 import { BotConfig } from './types.js';
 
@@ -20,23 +20,22 @@ async function createBot(): Promise<TelegramBotService> {
   try {
     const config = loadEnvironmentConfig();
     
-    // Configure memory store if Redis and OpenAI are available
-    let memoryStoreConfig: MemoryStoreConfig | undefined;
+    let ideaStoreConfig: IdeaStoreConfig | undefined;
     if (config.redisUrl && config.openaiApiKey) {
-      memoryStoreConfig = {
+      ideaStoreConfig = {
         redisUrl: config.redisUrl,
-        indexName: config.memoryIndexName || MEMORY_STORE_CONFIG.DEFAULT_INDEX_NAME,
-        vectorDimension: MEMORY_STORE_CONFIG.DEFAULT_VECTOR_DIMENSION,
+        indexName: config.ideaIndexName || IDEA_STORE_CONFIG.DEFAULT_INDEX_NAME,
+        vectorDimension: IDEA_STORE_CONFIG.DEFAULT_VECTOR_DIMENSION,
         openaiApiKey: config.openaiApiKey,
-        embeddingModel: config.embeddingModel || MEMORY_STORE_CONFIG.DEFAULT_EMBEDDING_MODEL
+        embeddingModel: config.embeddingModel || IDEA_STORE_CONFIG.DEFAULT_EMBEDDING_MODEL
       };
-      logger.info('Memory store configured', {
+      logger.info('Strategic idea store configured', {
         redisUrl: config.redisUrl,
-        indexName: memoryStoreConfig.indexName,
-        embeddingModel: memoryStoreConfig.embeddingModel
+        indexName: ideaStoreConfig.indexName,
+        embeddingModel: ideaStoreConfig.embeddingModel
       });
     } else {
-      logger.info('Memory store disabled - missing Redis URL or OpenAI API key', {
+      logger.info('Strategic idea store disabled - missing Redis URL or OpenAI API key', {
         hasRedisUrl: !!config.redisUrl,
         hasOpenaiApiKey: !!config.openaiApiKey
       });
@@ -46,7 +45,7 @@ async function createBot(): Promise<TelegramBotService> {
       telegramToken: config.telegramBotToken,
       claudeApiKey: config.anthropicApiKey,
       mcpServerPath: resolve(process.cwd(), '../../packages/mcp-server/dist/index.js'),
-      memoryStore: memoryStoreConfig,
+      ideaStore: ideaStoreConfig,
       webServer: {
         enabled: config.webServerEnabled !== 'false',
         port: parseInt(config.webServerPort || '3000'),

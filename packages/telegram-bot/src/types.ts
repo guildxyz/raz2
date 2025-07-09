@@ -1,11 +1,11 @@
 import { ClaudeMessage } from '@raz2/shared';
-import type { MemoryStoreConfig } from '@raz2/memory-store';
+import type { IdeaStoreConfig } from '@raz2/idea-store';
 
 export interface BotConfig {
   telegramToken: string;
   claudeApiKey: string;
   mcpServerPath: string;
-  memoryStore?: MemoryStoreConfig;
+  ideaStore?: IdeaStoreConfig;
   webServer?: {
     enabled: boolean;
     port: number;
@@ -19,7 +19,7 @@ export interface ConversationState {
   lastActivity: Date;
   userId?: string;
   userName?: string;
-  memoryContext?: string[];
+  strategicContext?: string[];
 }
 
 export interface ProcessedMessage {

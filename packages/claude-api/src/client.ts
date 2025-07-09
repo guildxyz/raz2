@@ -6,37 +6,32 @@ import {
   formatError,
   type ClaudeMessage 
 } from '@raz2/shared'
-import { MCPToolManager } from './tools'
-import type { ClaudeResponse, ToolCall, ToolResult } from './types'
+import type { ClaudeResponse } from './types'
 
 export class ClaudeClient {
   private client: Anthropic
   private config = loadEnvironmentConfig()
   private logger = createLogger('claude-api')
-  private toolManager: MCPToolManager
 
   constructor() {
     this.client = new Anthropic({
       apiKey: this.config.anthropicApiKey
     })
     
-    this.toolManager = new MCPToolManager()
-    this.logger.info('Claude client initialized', { 
+    this.logger.info('Claude client initialized for strategic intelligence', { 
       model: this.config.claudeModel 
     })
   }
 
   async initialize(): Promise<void> {
-    await this.toolManager.initialize()
-    this.logger.info('Claude client fully initialized with tools')
+    this.logger.info('Claude client ready for strategic intelligence conversations')
   }
 
   async sendMessage(
     message: string, 
-    conversationHistory: ClaudeMessage[] = [],
-    maxToolCalls: number = 5
+    conversationHistory: ClaudeMessage[] = []
   ): Promise<ClaudeResponse> {
-    this.logger.info('Sending message to Claude', { 
+    this.logger.info('Processing strategic intelligence query', { 
       messageLength: message.length,
       historyLength: conversationHistory.length 
     })
@@ -46,76 +41,23 @@ export class ClaudeClient {
       { role: 'user', content: message }
     ]
 
-    let toolCallCount = 0
-    let response: ClaudeResponse
-
-    while (toolCallCount < maxToolCalls) {
-      try {
-        response = await this.makeClaudeRequest(messages)
-        
-        if (!response.toolCalls || response.toolCalls.length === 0) {
-          this.logger.info('Claude responded without tool calls', { 
-            responseLength: response.content.length 
-          })
-          return response
-        }
-
-        this.logger.info('Claude requested tool calls', { 
-          toolCount: response.toolCalls.length,
-          tools: response.toolCalls.map(t => t.name),
-          responseContent: response.content.substring(0, 200) + (response.content.length > 200 ? '...' : '')
-        })
-
-        // Add the assistant message with tool calls
-        const assistantContent = this.buildAssistantContentWithTools(response.content, response.toolCalls)
-        messages.push({ 
-          role: 'assistant', 
-          content: assistantContent
-        })
-
-        this.logger.debug('Added assistant message', {
-          content: assistantContent.substring(0, 200) + (assistantContent.length > 200 ? '...' : '')
-        })
-
-        // Execute tools and add tool results
-        const toolResults = await this.executeToolCalls(response.toolCalls)
-        const toolResultsContent = this.buildToolResultsContent(toolResults)
-        messages.push({ 
-          role: 'user', 
-          content: toolResultsContent
-        })
-
-        this.logger.debug('Added tool results message', {
-          content: toolResultsContent.substring(0, 200) + (toolResultsContent.length > 200 ? '...' : ''),
-          messageCount: messages.length
-        })
-
-        toolCallCount++
-      } catch (error) {
-        this.logger.error('Error in Claude conversation', { 
-          error: error instanceof Error ? error : new Error(formatError(error)),
-          toolCallCount 
-        })
-        throw error
-      }
+    try {
+      const response = await this.makeClaudeRequest(messages)
+      
+      this.logger.info('Strategic intelligence response generated', { 
+        responseLength: response.content.length 
+      })
+      
+      return response
+    } catch (error) {
+      this.logger.error('Error processing strategic intelligence query', { 
+        error: error instanceof Error ? error : new Error(formatError(error))
+      })
+      throw error
     }
-
-    this.logger.warn('Maximum tool calls reached', { maxToolCalls })
-    
-    // If we hit the max tool calls, return a response with the last tool execution results
-    if (response!) {
-      return {
-        ...response,
-        content: response.content.trim() || 'I\'ve completed the requested operations using the available tools.'
-      }
-    }
-    
-    return response!
   }
 
   private async makeClaudeRequest(messages: ClaudeMessage[]): Promise<ClaudeResponse> {
-    const tools = await this.toolManager.getAvailableTools()
-    
     const filteredMessages = messages
       .filter(msg => msg.role !== 'system' && msg.content.trim())
       .map(msg => ({
@@ -123,63 +65,42 @@ export class ClaudeClient {
         content: msg.content
       }))
 
-    this.logger.debug('Sending messages to Claude API', {
-      messageCount: filteredMessages.length,
-      toolCount: tools.length,
-      messages: filteredMessages.map((msg, idx) => ({
-        index: idx,
-        role: msg.role,
-        contentLength: msg.content.length,
-        isEmpty: !msg.content.trim(),
-        preview: msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : '')
-      }))
+    this.logger.debug('Sending strategic intelligence query to Claude', {
+      messageCount: filteredMessages.length
     })
     
     return retry(async () => {
-      const requestBody: any = {
+      const response = await this.client.messages.create({
         model: this.config.claudeModel,
         max_tokens: 4000,
         messages: filteredMessages,
-        system: "You are a helpful assistant. When using tools, execute them as needed but always provide a clear, final response to the user. After using tools to gather information or perform actions, synthesize the results into a comprehensive answer. Do not repeatedly call the same tool unless different parameters are needed."
-      }
+        system: `You are a strategic business intelligence assistant for the CEO of Guild.xyz, a platform with 6+ million users and thousands of enterprise clients.
 
-      // Only add tools if we have any
-      if (tools.length > 0) {
-        requestBody.tools = tools.map(tool => ({
-          name: tool.name,
-          description: tool.description,
-          input_schema: tool.inputSchema
-        }))
-      }
+Your role is to help with:
+- Strategic planning and decision making
+- Product strategy and roadmap insights  
+- Enterprise sales intelligence and client insights
+- Competitive analysis and market intelligence
+- Partnership and business development opportunities
+- Team and operational strategy
 
-      const response = await this.client.messages.create(requestBody)
+Provide thoughtful, actionable insights that consider the scale and complexity of managing a platform with millions of users. Focus on strategic thinking, business intelligence, and executive-level decision support.`
+      })
 
-      const toolCalls: ToolCall[] = []
       let content = ''
-
       for (const contentBlock of response.content) {
         if (contentBlock.type === 'text') {
           content += contentBlock.text
-        } else if (contentBlock.type === 'tool_use') {
-          const toolUseBlock = contentBlock as any
-          toolCalls.push({
-            id: toolUseBlock.id,
-            name: toolUseBlock.name,
-            input: toolUseBlock.input as Record<string, any>
-          })
         }
       }
 
-      this.logger.debug('Claude API response', {
+      this.logger.debug('Strategic intelligence response received', {
         contentLength: content.length,
-        toolCallCount: toolCalls.length,
-        usage: response.usage,
-        stopReason: response.stop_reason
+        usage: response.usage
       })
 
       return {
         content,
-        toolCalls,
         usage: {
           inputTokens: response.usage.input_tokens,
           outputTokens: response.usage.output_tokens
@@ -188,87 +109,7 @@ export class ClaudeClient {
     }, 3, 1000)
   }
 
-  private async executeToolCalls(toolCalls: ToolCall[]): Promise<ToolResult[]> {
-    const results: ToolResult[] = []
-    
-    for (const toolCall of toolCalls) {
-      try {
-        this.logger.info('Executing tool', { 
-          tool: toolCall.name, 
-          input: toolCall.input 
-        })
-        
-        const result = await this.toolManager.executeTool(
-          toolCall.name, 
-          toolCall.input
-        )
-        
-        results.push({
-          toolCallId: toolCall.id,
-          result,
-          isError: false
-        })
-        
-        this.logger.info('Tool executed successfully', { 
-          tool: toolCall.name,
-          resultLength: result.length 
-        })
-      } catch (error) {
-        const errorMessage = formatError(error)
-        
-        this.logger.error('Tool execution failed', { 
-          tool: toolCall.name,
-          error: error instanceof Error ? error : new Error(errorMessage),
-          input: toolCall.input 
-        })
-        
-        results.push({
-          toolCallId: toolCall.id,
-          result: `Error: ${errorMessage}`,
-          isError: true
-        })
-      }
-    }
-    
-    return results
-  }
-
-
-
-  private buildAssistantContentWithTools(textContent: string, toolCalls: ToolCall[]): string {
-    // Always include some content to avoid empty messages
-    if (textContent.trim()) {
-      return textContent
-    }
-    // If no text content, create a meaningful message
-    return `I'll use the ${toolCalls.map(t => t.name).join(', ')} tool${toolCalls.length > 1 ? 's' : ''} to help with that.`
-  }
-
-  private buildToolResultsContent(results: ToolResult[]): string {
-    // Use a simpler format that Claude can better understand
-    const resultTexts = results.map(result => {
-      if (result.isError) {
-        return `Error from ${result.toolCallId}: ${result.result}`
-      }
-      return `Result from ${result.toolCallId}: ${result.result}`
-    })
-    
-    return `Tool execution completed:\n\n${resultTexts.join('\n\n')}`
-  }
-
-  async listAvailableTools(): Promise<string[]> {
-    const tools = await this.toolManager.getAvailableTools()
-    return tools.map(tool => tool.name)
-  }
-
-  async getToolDescription(toolName: string): Promise<string | null> {
-    const tools = await this.toolManager.getAvailableTools()
-    const tool = tools.find(t => t.name === toolName)
-    return tool?.description || null
-  }
-
   async shutdown(): Promise<void> {
-    await this.toolManager.shutdown()
-    this.logger.info('Claude client shut down')
+    this.logger.info('Claude client shutdown')
   }
 } 

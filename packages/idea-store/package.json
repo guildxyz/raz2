@@ -1,7 +1,7 @@
 {
-  "name": "@raz2/memory-store",
+  "name": "@raz2/idea-store",
   "version": "1.0.0",
-  "description": "Memory storage and retrieval using Redis Stack with vector search",
+  "description": "Idea storage and retrieval with reminders using Redis Stack with vector search",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
   },
-  "keywords": ["redis", "vector-search", "memory", "embeddings"],
+  "keywords": ["redis", "vector-search", "ideas", "reminders", "embeddings"],
   "author": "raz2",
   "license": "MIT"
 } 

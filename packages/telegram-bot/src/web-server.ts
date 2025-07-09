@@ -3,12 +3,12 @@ import cors from 'cors'
 import { resolve, join } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
 import { createLogger } from '@raz2/shared'
-import { MemoryService } from './memory-service'
+import { IdeaService } from './idea-service'
 
 export interface WebServerConfig {
   port: number
   host: string
-  memoryService: MemoryService
+  ideaService: IdeaService
   uiDistPath: string
 }
 
@@ -36,7 +36,7 @@ export class WebServer {
       res.json({ status: 'ok', timestamp: new Date().toISOString() })
     })
 
-    this.app.get('/api/memories', async (req: Request, res: Response) => {
+    this.app.get('/api/ideas', async (req: Request, res: Response) => {
       try {
         const { userId, limit = 1000 } = req.query
         
@@ -44,26 +44,26 @@ export class WebServer {
           return res.status(400).json({ error: 'userId is required' })
         }
 
-        const memories = await this.config.memoryService.getUserMemories(userId as string, parseInt(limit as string))
-        res.json(memories)
+        const ideas = await this.config.ideaService.getUserIdeas(userId as string, parseInt(limit as string))
+        res.json(ideas)
       } catch (error) {
-        this.logger.error('Error fetching memories:', { error: error instanceof Error ? error : new Error(String(error)) })
-        res.status(500).json({ error: 'Failed to fetch memories' })
+        this.logger.error('Error fetching ideas:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to fetch strategic ideas' })
       }
     })
 
-    this.app.get('/api/memories/stats', async (req: Request, res: Response) => {
+    this.app.get('/api/ideas/stats', async (req: Request, res: Response) => {
       try {
         const { userId } = req.query
-        const stats = await this.config.memoryService.getStats(userId as string)
+        const stats = await this.config.ideaService.getStats(userId as string)
         res.json(stats)
       } catch (error) {
-        this.logger.error('Error fetching memory stats:', { error: error instanceof Error ? error : new Error(String(error)) })
-        res.status(500).json({ error: 'Failed to fetch memory stats' })
+        this.logger.error('Error fetching idea stats:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to fetch strategic intelligence stats' })
       }
     })
 
-    this.app.delete('/api/memories/:id', async (req: Request, res: Response) => {
+    this.app.delete('/api/ideas/:id', async (req: Request, res: Response) => {
       try {
         const { id } = req.params
         const { userId } = req.query
@@ -72,20 +72,20 @@ export class WebServer {
           return res.status(400).json({ error: 'userId is required' })
         }
         
-        const success = await this.config.memoryService.deleteMemory(id, userId as string)
+        const success = await this.config.ideaService.deleteIdea(id, userId as string)
         
         if (success) {
           res.json({ success: true })
         } else {
-          res.status(404).json({ error: 'Memory not found or not owned by user' })
+          res.status(404).json({ error: 'Strategic idea not found or not owned by user' })
         }
       } catch (error) {
-        this.logger.error('Error deleting memory:', { error: error instanceof Error ? error : new Error(String(error)) })
-        res.status(500).json({ error: 'Failed to delete memory' })
+        this.logger.error('Error deleting idea:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to delete strategic idea' })
       }
     })
 
-    this.app.post('/api/memories/search', async (req: Request, res: Response) => {
+    this.app.post('/api/ideas/search', async (req: Request, res: Response) => {
       try {
         const { query, limit = 10, userId } = req.body
         
@@ -93,12 +93,12 @@ export class WebServer {
           return res.status(400).json({ error: 'userId is required' })
         }
         
-        const results = await this.config.memoryService.searchRelevantMemories(query, userId, parseInt(limit))
+        const results = await this.config.ideaService.searchRelevantIdeas(query, userId, parseInt(limit))
         
         res.json(results)
       } catch (error) {
-        this.logger.error('Error searching memories:', { error: error instanceof Error ? error : new Error(String(error)) })
-        res.status(500).json({ error: 'Failed to search memories' })
+        this.logger.error('Error searching ideas:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to search strategic ideas' })
       }
     })
 
@@ -110,12 +110,12 @@ export class WebServer {
         if (existsSync(indexPath)) {
           res.sendFile(indexPath)
         } else {
-          res.status(404).send('Memory UI not found. Please build the UI first.')
+          res.status(404).send('Strategic Intelligence Dashboard not found. Please build the UI first.')
         }
       })
     } else {
       this.app.get('*', (req: Request, res: Response) => {
-        res.status(404).send(`Memory UI not found at ${this.config.uiDistPath}. Please build the UI first.`)
+        res.status(404).send(`Strategic Intelligence Dashboard not found at ${this.config.uiDistPath}. Please build the UI first.`)
       })
     }
   }
@@ -123,7 +123,7 @@ export class WebServer {
   public async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server = this.app.listen(this.config.port, this.config.host, () => {
-        this.logger.info('Web server started', {
+        this.logger.info('Strategic Intelligence Dashboard server started', {
           host: this.config.host,
           port: this.config.port,
           uiDistPath: this.config.uiDistPath,
@@ -133,7 +133,7 @@ export class WebServer {
       })
 
       this.server.on('error', (error: Error) => {
-        this.logger.error('Web server error:', { error })
+        this.logger.error('Strategic Intelligence Dashboard server error:', { error })
         reject(error)
       })
     })
@@ -143,7 +143,7 @@ export class WebServer {
     return new Promise((resolve) => {
       if (this.server) {
         this.server.close(() => {
-          this.logger.info('Web server stopped')
+          this.logger.info('Strategic Intelligence Dashboard server stopped')
           resolve()
         })
       } else {

@@ -1,16 +1,16 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { ClaudeClient } from '@raz2/claude-api';
-import { MemoryStore } from '@raz2/memory-store';
-import { createLogger, sanitizeInput, parseCommand, MEMORY_STORE_CONFIG } from '@raz2/shared';
+import { IdeaStore } from '@raz2/idea-store';
+import { createLogger, sanitizeInput, parseCommand, IDEA_STORE_CONFIG } from '@raz2/shared';
 import { BotConfig, ConversationState, ProcessedMessage } from './types';
-import { MemoryService } from './memory-service';
+import { IdeaService } from './idea-service';
 import { WebServer } from './web-server';
 import { resolve, join } from 'node:path';
 
 export class TelegramBotService {
   private bot: TelegramBot;
   private claude: ClaudeClient;
-  private memoryService: MemoryService;
+  private ideaService: IdeaService;
   private webServer?: WebServer;
   private logger = createLogger('TelegramBot');
   private conversations = new Map<number, ConversationState>();
@@ -20,7 +20,7 @@ export class TelegramBotService {
       botToken: this.config.telegramToken ? `${this.config.telegramToken.substring(0, 10)}...` : 'missing',
       claudeApiKey: this.config.claudeApiKey ? `${this.config.claudeApiKey.substring(0, 10)}...` : 'missing',
       mcpServerPath: this.config.mcpServerPath,
-      memoryEnabled: !!this.config.memoryStore
+      ideaEnabled: !!this.config.ideaStore
     });
 
     this.bot = new TelegramBot(this.config.telegramToken, { 
@@ -29,14 +29,14 @@ export class TelegramBotService {
     
     this.claude = new ClaudeClient();
     
-    // Initialize memory service
-    if (this.config.memoryStore) {
-      const memoryStore = new MemoryStore(this.config.memoryStore);
-      this.memoryService = new MemoryService(memoryStore);
-      this.logger.info('Memory service enabled');
+    // Initialize idea service
+    if (this.config.ideaStore) {
+      const ideaStore = new IdeaStore(this.config.ideaStore);
+      this.ideaService = new IdeaService(ideaStore);
+      this.logger.info('Idea service enabled');
     } else {
-      this.memoryService = new MemoryService();
-      this.logger.info('Memory service disabled - no configuration provided');
+      this.ideaService = new IdeaService();
+      this.logger.info('Idea service disabled - no configuration provided');
     }
     
     // Initialize web server if enabled
@@ -45,7 +45,7 @@ export class TelegramBotService {
       this.webServer = new WebServer({
         port: this.config.webServer.port,
         host: this.config.webServer.host,
-        memoryService: this.memoryService,
+        ideaService: this.ideaService,
         uiDistPath
       });
       this.logger.info('Web server enabled', {
@@ -177,7 +177,7 @@ export class TelegramBotService {
         lastActivity: new Date(),
         userId: userId?.toString(),
         userName,
-        memoryContext: []
+        strategicContext: []
       });
     } else {
       this.logger.debug('Using existing conversation', { 
@@ -234,18 +234,19 @@ export class TelegramBotService {
       
       case 'ui':
       case 'web':
-        this.logger.info('Executing web UI command', { chatId });
+      case 'dashboard':
+        this.logger.info('Executing strategic dashboard command', { chatId });
         await this.handleWebUICommand(chatId);
         break;
       
-      case 'memories':
-        this.logger.info('Executing memories command', { chatId });
-        await this.handleMemoriesCommand(processed);
+      case 'ideas':
+        this.logger.info('Executing ideas command', { chatId });
+        await this.handleIdeasCommand(processed);
         break;
       
-      case 'remember':
-        this.logger.info('Executing remember command', { chatId });
-        await this.handleRememberCommand(processed);
+      case 'capture':
+        this.logger.info('Executing capture command', { chatId });
+        await this.handleCaptureCommand(processed);
         break;
       
       case 'forget':
@@ -264,29 +265,29 @@ export class TelegramBotService {
           command: command?.command,
           fullText: processed.text
         });
-        await this.sendMessage(chatId, `Unknown command: ${command?.command}`);
+        await this.sendMessage(chatId, `Unknown command: ${command?.command}\n\nUse /help to see available strategic intelligence commands.`);
     }
   }
 
-  private async handleMemoriesCommand(processed: ProcessedMessage): Promise<void> {
+  private async handleIdeasCommand(processed: ProcessedMessage): Promise<void> {
     const { chatId, userId } = processed;
 
-    if (!this.memoryService.isMemoryEnabled()) {
-      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+    if (!this.ideaService.isIdeaEnabled()) {
+      await this.sendMessage(chatId, '💡 Strategic intelligence feature is not enabled');
       return;
     }
 
     if (!userId) {
-      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      await this.sendMessage(chatId, '❌ Unable to identify user for strategic operations');
       return;
     }
 
     try {
-      const stats = await this.memoryService.getStats(userId.toString());
-      const memories = await this.memoryService.getUserMemories(userId.toString(), 10);
+      const stats = await this.ideaService.getStats(userId.toString());
+      const ideas = await this.ideaService.getUserIdeas(userId.toString(), 10);
 
       if (stats.count === 0) {
-        await this.sendMessage(chatId, '🧠 No memories found. Start chatting to build your memory!');
+        await this.sendMessage(chatId, '💡 No strategic ideas found. Start discussing strategy to build your intelligence base!');
         return;
       }
 
@@ -294,155 +295,157 @@ export class TelegramBotService {
         .map(([category, count]) => `• ${category}: ${count}`)
         .join('\n');
 
-      const recentMemories = memories.slice(0, 5)
-        .map((memory, index) => {
-          const date = memory.createdAt.toLocaleDateString();
-          const preview = memory.content.substring(0, 60) + (memory.content.length > 60 ? '...' : '');
-          return `${index + 1}. ${preview} (${date})`;
+      const recentIdeas = ideas.slice(0, 5)
+        .map((idea, index) => {
+          const date = idea.createdAt.toLocaleDateString();
+          const preview = idea.title || idea.content.substring(0, 60) + (idea.content.length > 60 ? '...' : '');
+          const priority = idea.priority === 'urgent' ? '🔴' : idea.priority === 'high' ? '🟠' : idea.priority === 'medium' ? '🟡' : '🟢';
+          return `${index + 1}. ${priority} ${preview} (${date})`;
         })
         .join('\n');
 
-      const message = `🧠 Your Memories (${stats.count} total)
+      const message = `💡 Your Strategic Ideas (${stats.count} total)
 
 📊 Categories:
 ${categoriesText}
 
-📝 Recent memories:
-${recentMemories}
+📝 Recent strategic ideas:
+${recentIdeas}
 
-Use /search <query> to find specific memories
-Use /remember <text> to save important information`;
+Use /search <query> to find specific strategic insights
+Use /capture <idea> to manually save strategic information`;
 
       await this.sendMessage(chatId, message);
     } catch (error) {
-      this.logger.error('Error in memories command', {
+      this.logger.error('Error in ideas command', {
         error: error instanceof Error ? error : new Error(String(error)),
         chatId,
         userId
       });
-      await this.sendMessage(chatId, '❌ Error retrieving memories');
+      await this.sendMessage(chatId, '❌ Error retrieving strategic ideas');
     }
   }
 
-  private async handleRememberCommand(processed: ProcessedMessage): Promise<void> {
+  private async handleCaptureCommand(processed: ProcessedMessage): Promise<void> {
     const { chatId, userId, command } = processed;
 
-    if (!this.memoryService.isMemoryEnabled()) {
-      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+    if (!this.ideaService.isIdeaEnabled()) {
+      await this.sendMessage(chatId, '💡 Strategic intelligence feature is not enabled');
       return;
     }
 
     if (!userId) {
-      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      await this.sendMessage(chatId, '❌ Unable to identify user for strategic operations');
       return;
     }
 
     if (!command?.args || command.args.length === 0) {
-      await this.sendMessage(chatId, '❌ Please provide text to remember\nUsage: /remember <important information>');
+      await this.sendMessage(chatId, '❌ Please provide strategic insight to capture\nUsage: /capture <strategic idea or insight>');
       return;
     }
 
     const content = command.args.join(' ');
     
     try {
-      const memory = await this.memoryService.storeUserPreference(
+      const idea = await this.ideaService.captureStrategicIdea(
+        'Manual Capture',
         content,
         userId.toString(),
-        chatId,
-        4 // High importance for manually saved memories
+        chatId
       );
 
-      if (memory) {
-        await this.sendMessage(chatId, `✅ Remembered: "${content}"`);
-        this.logger.info('User manually saved memory', {
+      if (idea) {
+        await this.sendMessage(chatId, `✅ Strategic insight captured: "${content}"\n\nCategory: ${idea.category}\nPriority: ${idea.priority}`);
+        this.logger.info('User manually captured strategic idea', {
           chatId,
           userId,
-          memoryId: memory.id,
+          ideaId: idea.id,
           contentLength: content.length
         });
       } else {
-        await this.sendMessage(chatId, '❌ Failed to save memory');
+        await this.sendMessage(chatId, '❌ Failed to capture strategic insight');
       }
     } catch (error) {
-      this.logger.error('Error in remember command', {
+      this.logger.error('Error in capture command', {
         error: error instanceof Error ? error : new Error(String(error)),
         chatId,
         userId,
         content: content.substring(0, 50)
       });
-      await this.sendMessage(chatId, '❌ Error saving memory');
+      await this.sendMessage(chatId, '❌ Error capturing strategic insight');
     }
   }
 
   private async handleForgetCommand(processed: ProcessedMessage): Promise<void> {
     const { chatId, userId } = processed;
 
-    if (!this.memoryService.isMemoryEnabled()) {
-      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+    if (!this.ideaService.isIdeaEnabled()) {
+      await this.sendMessage(chatId, '💡 Strategic intelligence feature is not enabled');
       return;
     }
 
     if (!userId) {
-      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      await this.sendMessage(chatId, '❌ Unable to identify user for strategic operations');
       return;
     }
 
-    // For now, just show message about clearing conversation
-    // In the future, could implement selective memory deletion
     this.conversations.delete(chatId);
     
     await this.sendMessage(chatId, `🧠 Conversation cleared! 
 
-Your stored memories remain intact. To manage individual memories, use:
-• /memories - View your memories
-• /search <query> - Find specific memories
+Your strategic intelligence repository remains intact. To manage strategic ideas:
+• /ideas - View your strategic ideas
+• /search <query> - Find specific strategic insights
+• /dashboard - Access strategic intelligence dashboard
 
-Note: Automatic memory deletion is not yet implemented for safety.`);
+Strategic insights are preserved for long-term strategic planning.`);
   }
 
   private async handleSearchCommand(processed: ProcessedMessage): Promise<void> {
     const { chatId, userId, command } = processed;
 
-    if (!this.memoryService.isMemoryEnabled()) {
-      await this.sendMessage(chatId, '🧠 Memory feature is not enabled');
+    if (!this.ideaService.isIdeaEnabled()) {
+      await this.sendMessage(chatId, '💡 Strategic intelligence feature is not enabled');
       return;
     }
 
     if (!userId) {
-      await this.sendMessage(chatId, '❌ Unable to identify user for memory operations');
+      await this.sendMessage(chatId, '❌ Unable to identify user for strategic operations');
       return;
     }
 
     if (!command?.args || command.args.length === 0) {
-      await this.sendMessage(chatId, '❌ Please provide search terms\nUsage: /search <what to find>');
+      await this.sendMessage(chatId, '❌ Please provide search terms\nUsage: /search <strategic topic or keyword>');
       return;
     }
 
     const query = command.args.join(' ');
     
     try {
-      const results = await this.memoryService.searchRelevantMemories(
+      const results = await this.ideaService.searchRelevantIdeas(
         query,
         userId.toString(),
         10
       );
 
       if (results.length === 0) {
-        await this.sendMessage(chatId, `🔍 No memories found for: "${query}"`);
+        await this.sendMessage(chatId, `🔍 No strategic insights found for: "${query}"`);
         return;
       }
 
       const searchResults = results
         .map((result, index) => {
           const score = (result.score * 100).toFixed(1);
-          const date = result.memory.createdAt.toLocaleDateString();
-          const category = result.memory.metadata.category || 'general';
-          return `${index + 1}. ${result.memory.content}
+          const date = result.idea.createdAt.toLocaleDateString();
+          const category = result.idea.category;
+          const priority = result.idea.priority === 'urgent' ? '🔴' : result.idea.priority === 'high' ? '🟠' : result.idea.priority === 'medium' ? '🟡' : '🟢';
+          const title = result.idea.title || result.idea.content.substring(0, 50) + '...';
+          return `${index + 1}. ${priority} ${title}
    📊 ${score}% match | 📅 ${date} | 🏷️ ${category}`;
         })
         .join('\n\n');
 
-      await this.sendMessage(chatId, `🔍 Search results for: "${query}"
+      await this.sendMessage(chatId, `🔍 Strategic insights for: "${query}"
 
 ${searchResults}`);
     } catch (error) {
@@ -452,7 +455,7 @@ ${searchResults}`);
         userId,
         query: query.substring(0, 50)
       });
-      await this.sendMessage(chatId, '❌ Error searching memories');
+      await this.sendMessage(chatId, '❌ Error searching strategic insights');
     }
   }
 
@@ -467,49 +470,47 @@ ${searchResults}`);
       userName,
       messageLength: text.length,
       conversationHistory: conversation.messages.length,
-      memoryEnabled: this.memoryService.isMemoryEnabled(),
+      ideaEnabled: this.ideaService.isIdeaEnabled(),
       text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
     });
 
     await this.sendTypingAction(chatId);
 
     try {
-      // Search for relevant memories if memory is enabled
-      let memoryContext = '';
-      if (this.memoryService.isMemoryEnabled() && conversation.userId) {
-        this.logger.debug('Searching for relevant memories', {
+      let strategicContext = '';
+      if (this.ideaService.isIdeaEnabled() && conversation.userId) {
+        this.logger.debug('Searching for relevant strategic insights', {
           chatId,
           userId: conversation.userId || 'unknown',
           query: text.substring(0, 50)
         });
 
-        const relevantMemories = await this.memoryService.searchRelevantMemories(
+        const relevantIdeas = await this.ideaService.searchRelevantIdeas(
           text,
           conversation.userId,
           3
         );
 
-        if (relevantMemories.length > 0) {
-          memoryContext = this.memoryService.buildMemoryContext(relevantMemories, 500);
-          this.logger.info('Found relevant memories for context', {
+        if (relevantIdeas.length > 0) {
+          strategicContext = this.ideaService.buildStrategicContext(relevantIdeas, 500);
+          this.logger.info('Found relevant strategic insights for context', {
             chatId,
             userId: conversation.userId || 'unknown',
-            memoryCount: relevantMemories.length,
-            contextLength: memoryContext.length
+            ideaCount: relevantIdeas.length,
+            contextLength: strategicContext.length
           });
         }
       }
 
-      // Prepare message for Claude with memory context
       let messageWithContext = text;
-      if (memoryContext) {
-        messageWithContext = `${memoryContext}\n\nCurrent message: ${text}`;
+      if (strategicContext) {
+        messageWithContext = `${strategicContext}\n\nCurrent message: ${text}`;
       }
 
       this.logger.info('Sending message to Claude API', {
         chatId,
         messageLength: text.length,
-        contextLength: memoryContext.length,
+        contextLength: strategicContext.length,
         historyLength: conversation.messages.length
       });
 
@@ -518,8 +519,6 @@ ${searchResults}`);
       this.logger.info('Received response from Claude', {
         chatId,
         responseLength: response.content.length,
-        toolCallsCount: response.toolCalls?.length || 0,
-        toolNames: response.toolCalls?.map((t: any) => t.name) || [],
         content: response.content.substring(0, 200) + (response.content.length > 200 ? '...' : '')
       });
 
@@ -528,24 +527,25 @@ ${searchResults}`);
         { role: 'assistant', content: response.content }
       );
 
-      // Store conversation memory if enabled and significant
-      if (this.memoryService.isMemoryEnabled() && conversation.userId && text.length > 10) {
-        // Store user message as conversation memory
-        await this.memoryService.storeConversationMemory(
-          text,
-          conversation.userId,
-          chatId,
-          conversation.userName
-        );
-
-        // Store significant assistant responses
-        if (response.content.length > 20 && !response.content.startsWith('🛠️')) {
-          await this.memoryService.storeConversationMemory(
-            `Assistant response: ${response.content}`,
+      if (this.ideaService.isIdeaEnabled() && conversation.userId && text.length > 20) {
+        const isStrategic = /\b(strategy|strategic|business|market|product|sales|revenue|growth|competition|partnership|client|customer|guild|platform|feature|roadmap|planning|decision|analysis)\b/i.test(text);
+        
+        if (isStrategic) {
+          await this.ideaService.captureStrategicIdea(
+            'Conversation Insight',
+            text,
             conversation.userId,
             chatId,
-            conversation.userName
+            'strategy',
+            'medium',
+            ['conversation', 'auto-captured']
           );
+          
+          this.logger.info('Auto-captured strategic insight from conversation', {
+            chatId,
+            userId: conversation.userId,
+            contentLength: text.length
+          });
         }
       }
 
@@ -555,16 +555,6 @@ ${searchResults}`);
       });
 
       await this.sendMessage(chatId, response.content);
-
-      if (response.toolCalls && response.toolCalls.length > 0) {
-        const toolInfo = response.toolCalls.map((tool: any) => `• ${tool.name}`).join('\n');
-        this.logger.info('Sending tool usage info', {
-          chatId,
-          toolCount: response.toolCalls.length,
-          tools: response.toolCalls.map((t: any) => t.name)
-        });
-        await this.sendMessage(chatId, `🛠️ Tools used:\n${toolInfo}`);
-      }
     } catch (error) {
       this.logger.error('Error processing Claude response:', { 
         error: error instanceof Error ? error : new Error(String(error)),
@@ -576,55 +566,38 @@ ${searchResults}`);
   }
 
   private async handleToolsCommand(chatId: number): Promise<void> {
-    try {
-      const tools = await this.claude.listAvailableTools();
-      
-      if (tools.length === 0) {
-        await this.sendMessage(chatId, 'No tools are currently available.');
-        return;
-      }
-
-      const toolList = tools.map((tool: string) => 
-        `🔧 ${tool}`
-      ).join('\n');
-
-      await this.sendMessage(chatId, `Available tools:\n\n${toolList}`);
-    } catch (error) {
-      this.logger.error('Error fetching tools:', { 
-        error: error instanceof Error ? error : new Error(String(error))
-      });
-      await this.sendMessage(chatId, 'Error fetching available tools.');
-    }
+    await this.sendMessage(chatId, '🧠 Strategic Intelligence System\n\nThis system uses Claude AI for strategic business intelligence. No external tools are needed - Claude provides comprehensive strategic analysis and insights directly.');
   }
 
   private async handleWebUICommand(chatId: number): Promise<void> {
     try {
       if (!this.webServer) {
-        await this.sendMessage(chatId, '❌ Web UI is not enabled. Please configure and restart the bot to enable the web interface.');
+        await this.sendMessage(chatId, '❌ Strategic Intelligence Dashboard is not enabled. Please configure and restart the system to enable the dashboard.');
         return;
       }
 
       const url = this.webServer.getUrl();
-      const message = `🌐 Memory Store Web UI
+      const message = `🧠 Guild.xyz Strategic Intelligence Dashboard
 
-The web interface is available at:
+Your strategic intelligence dashboard is available at:
 ${url}
 
-Features:
-• View all memories in spreadsheet format
-• Search and filter memories
-• Sort by any column
-• Delete memories
-• View statistics
+Strategic Features:
+• View all strategic ideas and business intelligence
+• Filter by category (strategy, product, sales, partnerships, etc.)
+• Track priority and status of strategic initiatives
+• Search strategic insights using natural language
+• Manage reminders for strategic follow-ups
+• Analytics on strategic focus areas
 
-Open the URL in your browser to access the interface.`;
+Open the URL in your browser to access your strategic intelligence dashboard.`;
 
       await this.sendMessage(chatId, message);
     } catch (error) {
-      this.logger.error('Error handling web UI command:', { 
+      this.logger.error('Error handling strategic dashboard command:', { 
         error: error instanceof Error ? error : new Error(String(error))
       });
-      await this.sendMessage(chatId, 'Error getting web UI information.');
+      await this.sendMessage(chatId, 'Error getting strategic dashboard information.');
     }
   }
 
@@ -667,46 +640,51 @@ Open the URL in your browser to access the interface.`;
   }
 
   private getWelcomeMessage(): string {
-    return `🤖 Claude Bot
+    return `🧠 Guild.xyz Strategic Intelligence System
 
-Welcome! I'm an AI assistant powered by Claude with access to various tools.
+Welcome! I'm your AI strategic intelligence assistant, designed specifically to support your role as CEO of Guild.xyz.
 
-You can:
-• Chat with me naturally
-• Ask me to use tools like calculator, weather, time
-• Use /help for more commands
+I help with:
+• Strategic planning and decision making
+• Product strategy and roadmap insights
+• Enterprise sales intelligence and client insights
+• Competitive analysis and market intelligence
+• Partnership and business development opportunities
+• Team and operational strategy
 
-What would you like to talk about?`;
+I automatically capture and organize strategic insights from our conversations. Use /help for available commands.
+
+What strategic challenge would you like to discuss?`;
   }
 
   private getHelpMessage(): string {
-    const baseCommands = `📖 Available Commands
+    const baseCommands = `🧠 Strategic Intelligence Commands
 
 /start - Show welcome message
 /help - Show this help
 /clear - Clear conversation history
-/tools - List available tools
-/ui or /web - Get web interface URL`;
+/ui or /dashboard - Access strategic intelligence dashboard`;
 
-    const memoryCommands = this.memoryService.isMemoryEnabled() ? `
+    const strategicCommands = this.ideaService.isIdeaEnabled() ? `
 
-🧠 Memory Commands:
-/memories - View your stored memories
-/remember <text> - Save important information
-/search <query> - Search your memories
-/forget - Clear conversation (memories preserved)` : '';
+💡 Strategic Intelligence:
+/ideas - View your strategic ideas and insights
+/capture <idea> - Manually capture strategic insight
+/search <query> - Search your strategic knowledge base
+/forget - Clear conversation (strategic insights preserved)` : '';
 
     const examples = `
 
-Examples:
-• "What's the weather like?"
-• "Calculate 2 + 2 * 3"
-• "What time is it in Tokyo?"
-• "Echo hello world"
+Strategic Examples:
+• "What's our competitive position in the Web3 space?"
+• "How should we approach enterprise clients in 2024?"
+• "What product features would drive user engagement?"
+• "Analyze the partnership opportunity with [company]"
+• "What are the key hiring priorities for Q2?"
 
-Just type naturally and I'll help you!`;
+I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
 
-    return baseCommands + memoryCommands + examples;
+    return baseCommands + strategicCommands + examples;
   }
 
   public async start(): Promise<void> {
@@ -725,7 +703,7 @@ Just type naturally and I'll help you!`;
       this.logger.info('Claude client initialized');
 
       // Initialize memory store if configured
-      if (this.memoryService.isMemoryEnabled()) {
+      if (this.ideaService.isIdeaEnabled()) {
         this.logger.info('Initializing memory store...');
         try {
           // Access the private memoryStore through a getter or make it accessible

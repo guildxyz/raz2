@@ -16,7 +16,7 @@
       "path": "../claude-api"
     },
     {
-      "path": "../memory-store"
+      "path": "../idea-store"
     }
   ]
 } 
