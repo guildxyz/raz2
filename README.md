@@ -9,6 +9,7 @@ A sophisticated Telegram bot powered by Claude AI with persistent memory capabil
 - **MCP Tool Support**: Extensible tool system (calculator, weather, time, echo)
 - **Telegram Bot**: Full-featured Telegram integration
 - **Memory System**: Persistent memory with semantic search using Redis Stack
+- **Web UI**: Modern web interface for managing memory store data
 - **TypeScript Monorepo**: Well-structured, type-safe codebase
 
 ### Memory Capabilities  
@@ -68,6 +69,11 @@ OPENAI_API_KEY=your_openai_api_key
 # Memory configuration (optional)
 MEMORY_INDEX_NAME=memories
 EMBEDDING_MODEL=text-embedding-3-small
+
+# Web UI configuration (optional)
+WEB_SERVER_ENABLED=true
+WEB_SERVER_PORT=3000
+WEB_SERVER_HOST=0.0.0.0
 ```
 
 ## Memory Commands
@@ -78,14 +84,48 @@ When memory is enabled, the bot supports these commands:
 - `/remember <text>` - Save important information
 - `/search <query>` - Search your memories semantically  
 - `/forget` - Clear conversation (memories preserved)
+- `/ui` or `/web` - Get the web interface URL for memory management
+
+## Web UI
+
+The bot includes a modern web interface for managing memory store data:
+
+### Features
+- **Spreadsheet View**: Display all memories in a sortable table
+- **Advanced Filtering**: Filter by user ID, category, chat ID, and tags
+- **Real-time Search**: Search across memory content, categories, and tags
+- **Memory Management**: Delete memories directly from the interface
+- **Statistics Dashboard**: View comprehensive stats about your memory store
+- **Responsive Design**: Works on desktop and mobile devices
+
+### Accessing the Web UI
+1. Enable the web server by setting `WEB_SERVER_ENABLED=true` in your environment
+2. Start the bot with `bun run start-bot`
+3. Use the `/ui` command in Telegram to get the web interface URL
+4. Open the URL in your browser to access the interface
+
+### Configuration
+```bash
+# Enable web server (default: true)
+WEB_SERVER_ENABLED=true
+
+# Web server port (default: 3000)
+WEB_SERVER_PORT=3000
+
+# Web server host (default: 0.0.0.0)
+WEB_SERVER_HOST=0.0.0.0
+```
+
+The web UI automatically connects to the same memory store as the bot, no additional configuration needed.
 
 ## Package Structure
 
 - **`packages/shared`** - Common utilities and types
 - **`packages/claude-api`** - Claude AI integration with tool support
 - **`packages/mcp-server`** - MCP tool server implementation
-- **`packages/telegram-bot`** - Telegram bot with memory integration
+- **`packages/telegram-bot`** - Telegram bot with memory integration and web server
 - **`packages/memory-store`** - Redis Stack vector memory system
+- **`packages/memory-ui`** - Modern React web interface for memory management
 
 ## Memory System Architecture
 

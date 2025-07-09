@@ -46,7 +46,12 @@ async function createBot(): Promise<TelegramBotService> {
       telegramToken: config.telegramBotToken,
       claudeApiKey: config.anthropicApiKey,
       mcpServerPath: resolve(process.cwd(), '../../packages/mcp-server/dist/index.js'),
-      memoryStore: memoryStoreConfig
+      memoryStore: memoryStoreConfig,
+      webServer: {
+        enabled: config.webServerEnabled !== 'false',
+        port: parseInt(config.webServerPort || '3000'),
+        host: config.webServerHost || '0.0.0.0'
+      }
     };
 
     validateConfig(botConfig);

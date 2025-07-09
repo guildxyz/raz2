@@ -9,9 +9,11 @@
   "scripts": {
     "build": "./scripts/build.sh",
     "build-parallel": "bun run --filter='*' build",
+    "build-ui": "./scripts/build-ui.sh",
     "dev": "bun run --filter='*' dev",
     "start": "cd packages/telegram-bot && bun run start",
     "start-bot": "./scripts/run.sh",
+    "start-ui": "cd packages/memory-ui && bun run dev",
     "test": "bun run --filter='*' test",
     "lint": "bun run --filter='*' lint",
     "type-check": "bun run --filter='*' type-check",

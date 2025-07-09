@@ -4,11 +4,14 @@ import { MemoryStore } from '@raz2/memory-store';
 import { createLogger, sanitizeInput, parseCommand, MEMORY_STORE_CONFIG } from '@raz2/shared';
 import { BotConfig, ConversationState, ProcessedMessage } from './types';
 import { MemoryService } from './memory-service';
+import { WebServer } from './web-server';
+import { resolve, join } from 'node:path';
 
 export class TelegramBotService {
   private bot: TelegramBot;
   private claude: ClaudeClient;
   private memoryService: MemoryService;
+  private webServer?: WebServer;
   private logger = createLogger('TelegramBot');
   private conversations = new Map<number, ConversationState>();
 
@@ -34,6 +37,22 @@ export class TelegramBotService {
     } else {
       this.memoryService = new MemoryService();
       this.logger.info('Memory service disabled - no configuration provided');
+    }
+    
+    // Initialize web server if enabled
+    if (this.config.webServer?.enabled) {
+      const uiDistPath = resolve(process.cwd(), './ui-dist');
+      this.webServer = new WebServer({
+        port: this.config.webServer.port,
+        host: this.config.webServer.host,
+        memoryService: this.memoryService,
+        uiDistPath
+      });
+      this.logger.info('Web server enabled', {
+        port: this.config.webServer.port,
+        host: this.config.webServer.host,
+        uiDistPath
+      });
     }
     
     this.setupHandlers();
@@ -211,6 +230,12 @@ export class TelegramBotService {
       case 'tools':
         this.logger.info('Executing tools command', { chatId });
         await this.handleToolsCommand(chatId);
+        break;
+      
+      case 'ui':
+      case 'web':
+        this.logger.info('Executing web UI command', { chatId });
+        await this.handleWebUICommand(chatId);
         break;
       
       case 'memories':
@@ -572,6 +597,37 @@ ${searchResults}`);
     }
   }
 
+  private async handleWebUICommand(chatId: number): Promise<void> {
+    try {
+      if (!this.webServer) {
+        await this.sendMessage(chatId, '❌ Web UI is not enabled. Please configure and restart the bot to enable the web interface.');
+        return;
+      }
+
+      const url = this.webServer.getUrl();
+      const message = `🌐 Memory Store Web UI
+
+The web interface is available at:
+${url}
+
+Features:
+• View all memories in spreadsheet format
+• Search and filter memories
+• Sort by any column
+• Delete memories
+• View statistics
+
+Open the URL in your browser to access the interface.`;
+
+      await this.sendMessage(chatId, message);
+    } catch (error) {
+      this.logger.error('Error handling web UI command:', { 
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      await this.sendMessage(chatId, 'Error getting web UI information.');
+    }
+  }
+
   private async sendMessage(chatId: number, text: string): Promise<void> {
     this.logger.info('Attempting to send message', {
       chatId,
@@ -629,7 +685,8 @@ What would you like to talk about?`;
 /start - Show welcome message
 /help - Show this help
 /clear - Clear conversation history
-/tools - List available tools`;
+/tools - List available tools
+/ui or /web - Get web interface URL`;
 
     const memoryCommands = this.memoryService.isMemoryEnabled() ? `
 
@@ -682,6 +739,22 @@ Just type naturally and I'll help you!`;
         }
       }
 
+      // Start web server if configured
+      if (this.webServer) {
+        this.logger.info('Starting web server...');
+        try {
+          await this.webServer.start();
+          this.logger.info('Web server started successfully', {
+            url: this.webServer.getUrl()
+          });
+        } catch (error) {
+          this.logger.error('Failed to start web server', {
+            error: error instanceof Error ? error : new Error(String(error))
+          });
+          // Continue without web server functionality
+        }
+      }
+
       this.startCleanupInterval();
       this.logger.info('Cleanup interval started');
       
@@ -720,6 +793,14 @@ Just type naturally and I'll help you!`;
     try {
       await this.bot.stopPolling();
       await this.claude.shutdown();
+      
+      // Stop web server if running
+      if (this.webServer) {
+        this.logger.info('Stopping web server...');
+        await this.webServer.stop();
+        this.logger.info('Web server stopped');
+      }
+      
       this.conversations.clear();
       this.logger.info('Bot stopped');
     } catch (error) {

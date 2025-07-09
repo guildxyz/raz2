@@ -92,6 +92,9 @@ export interface EnvironmentConfig {
   openaiApiKey?: string
   memoryIndexName?: string
   embeddingModel?: string
+  webServerEnabled?: string
+  webServerPort?: string
+  webServerHost?: string
 }
 
 export interface LogContext {

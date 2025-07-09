@@ -6,6 +6,11 @@ export interface BotConfig {
   claudeApiKey: string;
   mcpServerPath: string;
   memoryStore?: MemoryStoreConfig;
+  webServer?: {
+    enabled: boolean;
+    port: number;
+    host: string;
+  };
 }
 
 export interface ConversationState {

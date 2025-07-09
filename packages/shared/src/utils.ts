@@ -3,8 +3,8 @@ import { EnvironmentConfigSchema } from './schemas'
 
 export function loadEnvironmentConfig(): EnvironmentConfig {
   const env = {
-    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     claudeModel: process.env.CLAUDE_MODEL || 'claude-3-sonnet-20240229',
     mcpServerHost: process.env.MCP_SERVER_HOST || 'localhost',
     mcpServerPort: parseInt(process.env.MCP_SERVER_PORT || '3001'),
@@ -16,7 +16,10 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     redisUrl: process.env.REDIS_URL,
     openaiApiKey: process.env.OPENAI_API_KEY,
     memoryIndexName: process.env.MEMORY_INDEX_NAME,
-    embeddingModel: process.env.EMBEDDING_MODEL
+    embeddingModel: process.env.EMBEDDING_MODEL,
+    webServerEnabled: process.env.WEB_SERVER_ENABLED,
+    webServerPort: process.env.WEB_SERVER_PORT,
+    webServerHost: process.env.WEB_SERVER_HOST
   }
 
   return EnvironmentConfigSchema.parse(env)

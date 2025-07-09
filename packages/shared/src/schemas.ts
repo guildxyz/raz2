@@ -87,7 +87,10 @@ export const EnvironmentConfigSchema = z.object({
   redisUrl: z.string().optional(),
   openaiApiKey: z.string().optional(),
   memoryIndexName: z.string().optional(),
-  embeddingModel: z.string().optional()
+  embeddingModel: z.string().optional(),
+  webServerEnabled: z.string().optional(),
+  webServerPort: z.string().optional(),
+  webServerHost: z.string().optional()
 })
 
 export const LogContextSchema = z.object({
