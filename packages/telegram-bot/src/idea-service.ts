@@ -1,19 +1,34 @@
 import { IdeaStore, type Idea, type IdeaSearchResult, type CreateIdeaInput, type Reminder } from '@raz2/idea-store'
 import { createLogger } from '@raz2/shared'
+import { ClaudeClient } from '@raz2/claude-api'
+
+interface AIProcessedIdea {
+  title: string
+  description: string
+  suggestedCategory?: string
+  suggestedPriority?: string
+  suggestedTags?: string[]
+}
 
 export class IdeaService {
   private ideaStore: IdeaStore | null = null
+  private claude: ClaudeClient | null = null
   private logger = createLogger('idea-service')
   private isEnabled = false
   private isInitialized = false
 
-  constructor(ideaStore?: IdeaStore) {
+  constructor(ideaStore?: IdeaStore, claude?: ClaudeClient) {
     if (ideaStore) {
       this.ideaStore = ideaStore
       this.isEnabled = true
       this.logger.info('Idea service initialized with store')
     } else {
       this.logger.info('Idea service initialized without store (disabled)')
+    }
+    
+    if (claude) {
+      this.claude = claude
+      this.logger.info('AI processing enabled for idea enhancement')
     }
   }
 
@@ -60,6 +75,82 @@ export class IdeaService {
     await this.ensureInitialized()
   }
 
+  private async processIdeaWithAI(content: string, originalTitle?: string): Promise<AIProcessedIdea> {
+    if (!this.claude) {
+      return {
+        title: originalTitle || 'Strategic Idea',
+        description: content.substring(0, 200) + (content.length > 200 ? '...' : '')
+      }
+    }
+
+    try {
+      const prompt = `Analyze the following business idea/insight and provide a structured response:
+
+Content: "${content}"
+Original title: "${originalTitle || 'Not provided'}"
+
+Please provide:
+1. A clear, concise title (max 80 characters) that captures the essence of the idea
+2. A brief description (max 200 characters) that summarizes the key points
+3. Suggested category from: strategy, product, sales, partnerships, competitive, market, team, operations
+4. Suggested priority from: low, medium, high, urgent
+5. 3-5 relevant tags for categorization
+
+Format your response as JSON:
+{
+  "title": "...",
+  "description": "...",
+  "suggestedCategory": "...",
+  "suggestedPriority": "...",
+  "suggestedTags": ["tag1", "tag2", "tag3"]
+}`
+
+      const response = await this.claude.sendMessage(prompt)
+      
+      try {
+        const jsonStart = response.content.indexOf('{')
+        const jsonEnd = response.content.lastIndexOf('}')
+        
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          const jsonStr = response.content.substring(jsonStart, jsonEnd + 1)
+          const parsed = JSON.parse(jsonStr)
+          
+          return {
+            title: parsed.title || originalTitle || 'Strategic Idea',
+            description: parsed.description || content.substring(0, 200) + (content.length > 200 ? '...' : ''),
+            suggestedCategory: parsed.suggestedCategory,
+            suggestedPriority: parsed.suggestedPriority,
+            suggestedTags: parsed.suggestedTags
+          }
+        }
+      } catch (parseError) {
+        this.logger.warn('Failed to parse AI response as JSON', {
+          error: parseError instanceof Error ? parseError : new Error(String(parseError)),
+          response: response.content.substring(0, 200)
+        })
+      }
+      
+      const titleMatch = response.content.match(/title['":]?\s*['"](.*?)['"]/i)
+      const descMatch = response.content.match(/description['":]?\s*['"](.*?)['"]/i)
+      
+      return {
+        title: titleMatch?.[1] || originalTitle || 'Strategic Idea',
+        description: descMatch?.[1] || content.substring(0, 200) + (content.length > 200 ? '...' : '')
+      }
+      
+    } catch (error) {
+      this.logger.error('Failed to process idea with AI', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        contentLength: content.length
+      })
+      
+      return {
+        title: originalTitle || 'Strategic Idea',
+        description: content.substring(0, 200) + (content.length > 200 ? '...' : '')
+      }
+    }
+  }
+
   async captureStrategicIdea(
     title: string,
     content: string,
@@ -77,18 +168,65 @@ export class IdeaService {
     try {
       await this.ensureInitialized()
       
-      const ideaInput: CreateIdeaInput = {
-        title,
-        content,
-        category,
-        priority,
-        tags: [...tags, 'telegram', 'captured'],
+      const shouldEnhanceWithAI = title === 'Manual Capture' || title.length < 10 || /^(idea|thought|note)$/i.test(title.trim())
+      
+      let finalTitle = title
+      let finalContent = content
+      let finalCategory = category
+      let finalPriority = priority
+      let finalTags = [...tags, 'telegram', 'captured']
+      
+      if (shouldEnhanceWithAI && content.length > 10) {
+        this.logger.info('Enhancing idea with AI processing', {
+          originalTitle: title,
+          contentLength: content.length,
           userId,
-          chatId,
+          chatId
+        })
+        
+        const processed = await this.processIdeaWithAI(content, title)
+        
+        finalTitle = processed.title
+        
+        if (processed.description && processed.description !== content) {
+          finalContent = `${processed.description}\n\nOriginal content: ${content}`
+        }
+        
+        if (processed.suggestedCategory && category === 'strategy') {
+          finalCategory = processed.suggestedCategory as typeof category
+        }
+        
+        if (processed.suggestedPriority && priority === 'medium') {
+          finalPriority = processed.suggestedPriority as typeof priority
+        }
+        
+        if (processed.suggestedTags) {
+          finalTags = [...finalTags, ...processed.suggestedTags, 'ai-enhanced']
+        }
+        
+        this.logger.info('AI processing completed', {
+          originalTitle: title,
+          enhancedTitle: finalTitle,
+          suggestedCategory: processed.suggestedCategory,
+          suggestedPriority: processed.suggestedPriority,
+          suggestedTags: processed.suggestedTags,
+          userId,
+          chatId
+        })
+      }
+      
+      const ideaInput: CreateIdeaInput = {
+        title: finalTitle,
+        content: finalContent,
+        category: finalCategory,
+        priority: finalPriority,
+        tags: finalTags,
+        userId,
+        chatId,
         reminders: reminderDate ? [{
           type: 'once',
           scheduledFor: reminderDate,
-          message: `Review strategic idea: ${title}`
+          message: `Review strategic idea: ${finalTitle}`
         }] : []
       }
 
@@ -96,12 +234,13 @@ export class IdeaService {
 
       this.logger.info('Captured strategic idea', {
         ideaId: idea.id,
-        title,
-        category,
-        priority,
+        title: finalTitle,
+        category: finalCategory,
+        priority: finalPriority,
         userId,
         chatId,
-        hasReminder: !!reminderDate
+        hasReminder: !!reminderDate,
+        wasEnhanced: shouldEnhanceWithAI
       })
 
       return idea

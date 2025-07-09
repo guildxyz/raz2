@@ -33,7 +33,7 @@ export class TelegramBotService {
     // Initialize idea service
     if (this.config.ideaStore) {
       const ideaStore = new IdeaStore(this.config.ideaStore);
-      this.ideaService = new IdeaService(ideaStore);
+      this.ideaService = new IdeaService(ideaStore, this.claude);
       
       // Enable Claude tools for idea management
       this.toolExecutor = new ToolExecutor(this.ideaService);
@@ -690,7 +690,12 @@ What strategic challenge would you like to discuss?`;
 /ideas - View your strategic ideas and insights
 /capture <idea> - Manually capture strategic insight
 /search <query> - Search your strategic knowledge base
-/forget - Clear conversation (strategic insights preserved)` : '';
+/forget - Clear conversation (strategic insights preserved)
+
+🧠 AI can now also:
+• Forget specific ideas: "Forget the mobile app idea"
+• Delete ideas by ID: "Delete idea abc123"
+• Auto-generate titles and descriptions for new ideas` : '';
 
     const examples = `
 
