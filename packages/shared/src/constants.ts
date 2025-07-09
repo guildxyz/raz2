@@ -56,7 +56,6 @@ export const HEALTH_CHECK_ENDPOINTS = {
 } as const
 
 export const IDEA_STORE_CONFIG = {
-  DEFAULT_INDEX_NAME: 'ideas',
   DEFAULT_VECTOR_DIMENSION: 1536,
   DEFAULT_EMBEDDING_MODEL: 'text-embedding-3-small',
   SEARCH_LIMIT: 10,
@@ -89,8 +88,8 @@ export const REMINDER_TYPES = {
   CUSTOM: 'custom'
 } as const
 
-export const REDIS_CONFIG = {
-  DEFAULT_PORT: 6379,
+export const DATABASE_CONFIG = {
+  DEFAULT_PORT: 5432,
   DEFAULT_HOST: 'localhost',
   CONNECTION_TIMEOUT: 5000,
   RETRY_ATTEMPTS: 3

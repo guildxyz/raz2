@@ -21,22 +21,20 @@ async function createBot(): Promise<TelegramBotService> {
     const config = loadEnvironmentConfig();
     
     let ideaStoreConfig: IdeaStoreConfig | undefined;
-    if (config.redisUrl && config.openaiApiKey) {
+    if (config.databaseUrl && config.openaiApiKey) {
       ideaStoreConfig = {
-        redisUrl: config.redisUrl,
-        indexName: config.ideaIndexName || IDEA_STORE_CONFIG.DEFAULT_INDEX_NAME,
-        vectorDimension: IDEA_STORE_CONFIG.DEFAULT_VECTOR_DIMENSION,
+        databaseUrl: config.databaseUrl,
         openaiApiKey: config.openaiApiKey,
-        embeddingModel: config.embeddingModel || IDEA_STORE_CONFIG.DEFAULT_EMBEDDING_MODEL
+        embeddingModel: config.embeddingModel || IDEA_STORE_CONFIG.DEFAULT_EMBEDDING_MODEL,
+        vectorDimension: IDEA_STORE_CONFIG.DEFAULT_VECTOR_DIMENSION
       };
       logger.info('Strategic idea store configured', {
-        redisUrl: config.redisUrl,
-        indexName: ideaStoreConfig.indexName,
+        databaseUrl: config.databaseUrl,
         embeddingModel: ideaStoreConfig.embeddingModel
       });
     } else {
-      logger.info('Strategic idea store disabled - missing Redis URL or OpenAI API key', {
-        hasRedisUrl: !!config.redisUrl,
+      logger.info('Strategic idea store disabled - missing Database URL or OpenAI API key', {
+        hasDatabaseUrl: !!config.databaseUrl,
         hasOpenaiApiKey: !!config.openaiApiKey
       });
     }

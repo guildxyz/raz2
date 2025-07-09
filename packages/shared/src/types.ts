@@ -51,9 +51,8 @@ export interface EnvironmentConfig {
   nodeEnv: string
   logLevel: string
   port: number
-  redisUrl?: string
+  databaseUrl?: string
   openaiApiKey?: string
-  ideaIndexName?: string
   embeddingModel?: string
   webServerEnabled?: string
   webServerPort?: string
@@ -127,11 +126,10 @@ export interface IdeaFilter {
 }
 
 export interface IdeaStoreConfig {
-  redisUrl: string
-  indexName: string
-  vectorDimension: number
+  databaseUrl: string
   openaiApiKey: string
   embeddingModel: string
+  vectorDimension: number
 }
 
 export interface CreateIdeaInput {

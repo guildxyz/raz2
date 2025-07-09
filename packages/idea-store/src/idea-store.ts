@@ -1,10 +1,10 @@
-import { createClient, RedisClientType } from 'redis'
-import { SchemaFieldTypes, VectorAlgorithms } from '@redis/search'
+import { desc, eq, and, sql, cosineDistance, inArray } from 'drizzle-orm'
 import { createLogger } from '@raz2/shared'
 import { EmbeddingService } from './embedding'
+import { createDatabase, enablePgVector, type Database } from './db'
+import { ideas, reminders, type IdeaRow, type ReminderRow } from './schema'
 import type {
   Idea,
-  IdeaWithVector,
   IdeaSearchResult,
   IdeaSearchOptions,
   IdeaStoreConfig,
@@ -19,46 +19,26 @@ import type {
 } from './types'
 
 export class IdeaStore {
-  private client: RedisClientType
+  private db: Database
   private embedding: EmbeddingService
   private logger = createLogger('idea-store')
   private config: IdeaStoreConfig
   private isConnected = false
+  private isInitialized = false
 
   constructor(config: IdeaStoreConfig) {
     this.config = config
-    this.client = createClient({ url: config.redisUrl })
+    this.db = createDatabase(config.databaseUrl)
     this.embedding = new EmbeddingService(config.openaiApiKey, config.embeddingModel)
-
-    this.setupEventHandlers()
-  }
-
-  private setupEventHandlers(): void {
-    this.client.on('error', (error) => {
-      this.logger.error('Redis client error', { 
-        error: error instanceof Error ? error : new Error(String(error)) 
-      })
-    })
-
-    this.client.on('connect', () => {
-      this.logger.info('Connected to Redis')
-      this.isConnected = true
-    })
-
-    this.client.on('disconnect', () => {
-      this.logger.warn('Disconnected from Redis')
-      this.isConnected = false
-    })
+    this.logger.info('IdeaStore initialized with PostgreSQL + pgvector')
   }
 
   async initialize(): Promise<void> {
     try {
-      if (!this.isConnected) {
-        await this.client.connect()
-      }
-
-      await this.createIndex()
-      this.logger.info('Idea store initialized successfully')
+      await enablePgVector(this.db)
+      this.isConnected = true
+      this.isInitialized = true
+      this.logger.info('Idea store initialized successfully with pgvector')
     } catch (error) {
       this.logger.error('Failed to initialize idea store', {
         error: error instanceof Error ? error : new Error(String(error))
@@ -67,167 +47,51 @@ export class IdeaStore {
     }
   }
 
-  private async createIndex(): Promise<void> {
-    try {
-      // Check if index exists and drop it to recreate with updated schema
-      try {
-        await this.client.ft.info(this.config.indexName)
-        this.logger.info('Existing index found, dropping to recreate with updated schema', { indexName: this.config.indexName })
-        await this.client.ft.dropIndex(this.config.indexName)
-      } catch (error) {
-        // Index doesn't exist, which is fine
-        this.logger.info('No existing index found, creating new one', { indexName: this.config.indexName })
-      }
-
-      await this.client.ft.create(
-        this.config.indexName,
-        {
-          '$.id': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.title': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.content': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.category': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.priority': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.status': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.userId': {
-            type: SchemaFieldTypes.TEXT,
-            SORTABLE: true
-          },
-          '$.chatId': {
-            type: SchemaFieldTypes.NUMERIC,
-            SORTABLE: true
-          },
-          '$.tags': {
-            type: SchemaFieldTypes.TAG,
-            SEPARATOR: ','
-          },
-          '$.createdAt': {
-            type: SchemaFieldTypes.NUMERIC,
-            SORTABLE: true
-          },
-          '$.updatedAt': {
-            type: SchemaFieldTypes.NUMERIC,
-            SORTABLE: true
-          },
-          '$.vector': {
-            type: SchemaFieldTypes.VECTOR,
-            ALGORITHM: VectorAlgorithms.HNSW,
-            TYPE: 'FLOAT32',
-            DIM: this.config.vectorDimension,
-            DISTANCE_METRIC: 'COSINE'
-          }
-        },
-        {
-          ON: 'JSON',
-          PREFIX: 'idea:'
-        }
-      )
-
-      this.logger.info('Vector index created successfully', { 
-        indexName: this.config.indexName,
-        dimension: this.config.vectorDimension
-      })
-    } catch (error) {
-      this.logger.error('Failed to create vector index', {
-        error: error instanceof Error ? error : new Error(String(error))
-      })
-      throw error
-    }
-  }
-
   async createIdea(input: CreateIdeaInput): Promise<Idea> {
     try {
-      const id = `idea:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      const now = new Date()
-      const timestamp = now.getTime()
-
       const embeddingResponse = await this.embedding.generateEmbedding(
         `${input.title} ${input.content}`
       )
 
-      const ideaWithVector: IdeaWithVector = {
-        id: id.replace('idea:', ''),
-        title: input.title,
-        content: input.content,
-        category: input.category || 'strategy',
-        priority: input.priority || 'medium',
-        status: 'active',
-        tags: input.tags || [],
-        userId: input.userId,
-        chatId: input.chatId,
-        createdAt: now,
-        updatedAt: now,
-        vector: embeddingResponse.vector,
-        reminders: []
-      }
+      const [ideaRow] = await this.db
+        .insert(ideas)
+        .values({
+          title: input.title,
+          content: input.content,
+          category: input.category || 'strategy',
+          priority: input.priority || 'medium',
+          status: 'active',
+          tags: input.tags || [],
+          userId: input.userId,
+          chatId: input.chatId,
+          embedding: embeddingResponse.vector,
+        })
+        .returning()
 
-      if (input.reminders) {
-        ideaWithVector.reminders = input.reminders.map((reminder: any) => ({
-          id: `reminder:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          ideaId: ideaWithVector.id,
-          type: reminder.type,
-          scheduledFor: reminder.scheduledFor,
-          message: reminder.message,
-          isActive: true,
-          isSent: false,
-          createdAt: now,
-          updatedAt: now
-        }))
-      }
-
-      const ideaForStorage = {
-        ...ideaWithVector,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        reminders: ideaWithVector.reminders?.map(r => ({
-          ...r,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-          scheduledFor: r.scheduledFor instanceof Date ? r.scheduledFor.getTime() : r.scheduledFor
-        }))
-      }
-
-      await this.client.json.set(id, '$', ideaForStorage as any)
-
-      for (const reminder of ideaWithVector.reminders || []) {
-        const reminderForStorage = {
-          ...reminder,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-          scheduledFor: reminder.scheduledFor instanceof Date ? reminder.scheduledFor.getTime() : reminder.scheduledFor
-        }
-        await this.client.json.set(`reminder:${reminder.id}`, '$', reminderForStorage as any)
+      let reminderRows: ReminderRow[] = []
+      if (input.reminders && input.reminders.length > 0) {
+        reminderRows = await this.db
+          .insert(reminders)
+          .values(
+            input.reminders.map((reminder: CreateReminderInput) => ({
+              ideaId: ideaRow.id,
+              type: reminder.type,
+              scheduledFor: reminder.scheduledFor,
+              message: reminder.message,
+              isActive: true,
+              isSent: false,
+            }))
+          )
+          .returning()
       }
 
       this.logger.info('Idea created successfully', {
-        id: ideaWithVector.id,
+        id: ideaRow.id,
         title: input.title,
-        reminders: ideaWithVector.reminders?.length || 0
+        reminders: reminderRows.length
       })
 
-      const { vector, ...idea } = ideaWithVector
-      // Convert timestamps back to Date objects for the return value
-      idea.createdAt = new Date(idea.createdAt)
-      idea.updatedAt = new Date(idea.updatedAt)
-      
-      return idea
+      return this.mapIdeaRowToIdea(ideaRow, reminderRows)
     } catch (error) {
       this.logger.error('Failed to create idea', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -239,31 +103,22 @@ export class IdeaStore {
 
   async getIdea(id: string): Promise<Idea | null> {
     try {
-      const key = id.startsWith('idea:') ? id : `idea:${id}`
-      const data = await this.client.json.get(key, { path: '$' })
+      const [ideaRow] = await this.db
+        .select()
+        .from(ideas)
+        .where(eq(ideas.id, id))
+        .limit(1)
 
-      if (!data || !Array.isArray(data) || data.length === 0) {
+      if (!ideaRow) {
         return null
       }
 
-      const ideaWithVector = data[0] as unknown as any
-      const { vector, ...idea } = ideaWithVector
+      const reminderRows = await this.db
+        .select()
+        .from(reminders)
+        .where(eq(reminders.ideaId, id))
 
-      // Convert timestamps back to Date objects
-      idea.createdAt = new Date(idea.createdAt)
-      idea.updatedAt = new Date(idea.updatedAt)
-
-      // Convert reminder timestamps if they exist
-      if (idea.reminders) {
-        idea.reminders = idea.reminders.map((reminder: any) => ({
-          ...reminder,
-          createdAt: new Date(reminder.createdAt),
-          updatedAt: new Date(reminder.updatedAt),
-          scheduledFor: new Date(reminder.scheduledFor)
-        }))
-      }
-
-      return idea
+      return this.mapIdeaRowToIdea(ideaRow, reminderRows)
     } catch (error) {
       this.logger.error('Failed to get idea', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -275,81 +130,66 @@ export class IdeaStore {
 
   async updateIdea(input: UpdateIdeaInput): Promise<Idea | null> {
     try {
-      const key = input.id.startsWith('idea:') ? input.id : `idea:${input.id}`
-      const existing = await this.client.json.get(key, { path: '$' })
+      const updateData: Partial<IdeaRow> = {
+        updatedAt: new Date(),
+      }
 
-      if (!existing || !Array.isArray(existing) || existing.length === 0) {
+      if (input.title) updateData.title = input.title
+      if (input.content) updateData.content = input.content
+      if (input.category) updateData.category = input.category
+      if (input.priority) updateData.priority = input.priority
+      if (input.status) updateData.status = input.status
+      if (input.tags) updateData.tags = input.tags
+
+      if (input.title || input.content) {
+        const existingIdea = await this.getIdea(input.id)
+        if (!existingIdea) return null
+
+        const embeddingText = `${input.title || existingIdea.title} ${input.content || existingIdea.content}`
+        const embeddingResponse = await this.embedding.generateEmbedding(embeddingText)
+        updateData.embedding = embeddingResponse.vector
+      }
+
+      const [updatedIdeaRow] = await this.db
+        .update(ideas)
+        .set(updateData)
+        .where(eq(ideas.id, input.id))
+        .returning()
+
+      if (!updatedIdeaRow) {
         return null
       }
 
-      const ideaWithVector = existing[0] as unknown as IdeaWithVector
-      const timestamp = new Date().getTime()
-
-      if (input.title) ideaWithVector.title = input.title
-      if (input.content) ideaWithVector.content = input.content
-      if (input.category) ideaWithVector.category = input.category
-      if (input.priority) ideaWithVector.priority = input.priority
-      if (input.status) ideaWithVector.status = input.status
-      if (input.tags) ideaWithVector.tags = input.tags
-
-      if (input.title || input.content) {
-        const embeddingResponse = await this.embedding.generateEmbedding(
-          `${ideaWithVector.title} ${ideaWithVector.content}`
-        )
-        ideaWithVector.vector = embeddingResponse.vector
-      }
-
       if (input.reminders) {
-        ideaWithVector.reminders = input.reminders.map((reminder: any) => ({
-          id: `reminder:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          ideaId: ideaWithVector.id,
-          type: reminder.type,
-          scheduledFor: reminder.scheduledFor,
-          message: reminder.message,
-          isActive: true,
-          isSent: false,
-          createdAt: new Date(timestamp),
-          updatedAt: new Date(timestamp)
-        }))
-      }
-
-      ideaWithVector.updatedAt = new Date(timestamp)
-
-      const ideaForStorage = {
-        ...ideaWithVector,
-        createdAt: ideaWithVector.createdAt instanceof Date ? ideaWithVector.createdAt.getTime() : ideaWithVector.createdAt,
-        updatedAt: timestamp,
-        reminders: ideaWithVector.reminders?.map(r => ({
-          ...r,
-          createdAt: r.createdAt instanceof Date ? r.createdAt.getTime() : r.createdAt,
-          updatedAt: timestamp,
-          scheduledFor: r.scheduledFor instanceof Date ? r.scheduledFor.getTime() : r.scheduledFor
-        }))
-      }
-
-      await this.client.json.set(key, '$', ideaForStorage as any)
-
-      for (const reminder of ideaWithVector.reminders || []) {
-        const reminderForStorage = {
-          ...reminder,
-          createdAt: reminder.createdAt instanceof Date ? reminder.createdAt.getTime() : reminder.createdAt,
-          updatedAt: timestamp,
-          scheduledFor: reminder.scheduledFor instanceof Date ? reminder.scheduledFor.getTime() : reminder.scheduledFor
+        await this.db.delete(reminders).where(eq(reminders.ideaId, input.id))
+        
+        if (input.reminders.length > 0) {
+          await this.db
+            .insert(reminders)
+            .values(
+              input.reminders.map((reminder: CreateReminderInput) => ({
+                ideaId: input.id,
+                type: reminder.type,
+                scheduledFor: reminder.scheduledFor,
+                message: reminder.message,
+                isActive: true,
+                isSent: false,
+              }))
+            )
         }
-        await this.client.json.set(`reminder:${reminder.id}`, '$', reminderForStorage as any)
       }
+
+      const reminderRows = await this.db
+        .select()
+        .from(reminders)
+        .where(eq(reminders.ideaId, input.id))
 
       this.logger.info('Idea updated successfully', {
-        id: ideaWithVector.id,
-        title: ideaWithVector.title
+        id: updatedIdeaRow.id,
+        title: updatedIdeaRow.title
       })
 
-      const { vector, ...idea } = ideaWithVector
-      // Convert timestamps back to Date objects for the return value
-      idea.createdAt = new Date(idea.createdAt)
-      idea.updatedAt = new Date(idea.updatedAt)
-      
-      return idea
+      return this.mapIdeaRowToIdea(updatedIdeaRow, reminderRows)
     } catch (error) {
       this.logger.error('Failed to update idea', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -361,11 +201,14 @@ export class IdeaStore {
 
   async deleteIdea(id: string): Promise<boolean> {
     try {
-      const key = id.startsWith('idea:') ? id : `idea:${id}`
-      const result = await this.client.del(key)
-      
-      this.logger.info('Idea deleted', { id, deleted: result > 0 })
-      return result > 0
+      const result = await this.db
+        .delete(ideas)
+        .where(eq(ideas.id, id))
+        .returning({ id: ideas.id })
+
+      const deleted = result.length > 0
+      this.logger.info('Idea deleted', { id, deleted })
+      return deleted
     } catch (error) {
       this.logger.error('Failed to delete idea', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -377,11 +220,6 @@ export class IdeaStore {
 
   async searchIdeas(query: string, options: IdeaSearchOptions = {}): Promise<IdeaSearchResult[]> {
     try {
-      if (!this.isConnected) {
-        this.logger.error('Redis client not connected for search operation')
-        throw new Error('Redis client not connected')
-      }
-
       const { limit = 10, threshold = 0.1, filter } = options
 
       this.logger.debug('Generating embedding for search query', {
@@ -390,117 +228,62 @@ export class IdeaStore {
       })
 
       const queryEmbedding = await this.embedding.generateEmbedding(query)
+      const similarity = sql`1 - (${cosineDistance(ideas.embedding, queryEmbedding.vector)})`
 
-      let searchQuery = '*'
+      const baseQuery = this.db
+        .select({
+          idea: ideas,
+          similarity
+        })
+        .from(ideas)
+
+      const conditions = [sql`${similarity} > ${threshold}`]
+      
       if (filter) {
-        const filterParts: string[] = []
-        
-        if (filter.userId) {
-          filterParts.push(`@userId:"${filter.userId}"`)
-        }
-        if (filter.chatId) {
-          filterParts.push(`@chatId:[${filter.chatId} ${filter.chatId}]`)
-        }
-        if (filter.category) {
-          filterParts.push(`@category:"${filter.category}"`)
-        }
-        if (filter.priority) {
-          filterParts.push(`@priority:"${filter.priority}"`)
-        }
-        if (filter.status) {
-          filterParts.push(`@status:"${filter.status}"`)
-        }
+        if (filter.userId) conditions.push(eq(ideas.userId, filter.userId))
+        if (filter.chatId) conditions.push(eq(ideas.chatId, filter.chatId))
+        if (filter.category) conditions.push(eq(ideas.category, filter.category))
+        if (filter.priority) conditions.push(eq(ideas.priority, filter.priority))
+        if (filter.status) conditions.push(eq(ideas.status, filter.status))
         if (filter.tags && filter.tags.length > 0) {
-          filterParts.push(`@tags:{${filter.tags.join('|')}}`)
-        }
-
-        if (filterParts.length > 0) {
-          searchQuery = filterParts.join(' ')
+          conditions.push(sql`${ideas.tags} && ${filter.tags}`)
         }
       }
 
-      this.logger.debug('Executing vector search', {
-        indexName: this.config.indexName,
-        searchQuery,
-        vectorDimension: queryEmbedding.vector.length,
-        limit
-      })
+      const results = await baseQuery
+        .where(and(...conditions))
+        .orderBy(desc(similarity))
+        .limit(limit)
 
-      const results = await this.client.ft.search(
-        this.config.indexName,
-        searchQuery,
-        {
-          PARAMS: {
-            BLOB: Buffer.from(new Float32Array(queryEmbedding.vector).buffer)
-          },
-          SORTBY: {
-            BY: '__vector_score',
-            DIRECTION: 'ASC'
-          },
-          LIMIT: {
-            from: 0,
-            size: limit
-          },
-          RETURN: ['$'],
-          DIALECT: 2
-        }
-      )
+      const searchResults: IdeaSearchResult[] = []
 
-      const ideas: IdeaSearchResult[] = []
+      for (const result of results) {
+        const reminderRows = await this.db
+          .select()
+          .from(reminders)
+          .where(eq(reminders.ideaId, result.idea.id))
 
-      for (const doc of results.documents) {
-        if (doc.value) {
-          const ideaWithVector = JSON.parse(doc.value['$'] as string) as any
-          const score = parseFloat(doc.id.split(':')[1] || '0')
-          
-          if (score >= threshold) {
-            const { vector, ...idea } = ideaWithVector
-            
-            // Convert timestamps back to Date objects
-            idea.createdAt = new Date(idea.createdAt)
-            idea.updatedAt = new Date(idea.updatedAt)
+        const idea = this.mapIdeaRowToIdea(result.idea, reminderRows)
+        const score = Number(result.similarity)
 
-            // Convert reminder timestamps if they exist
-            if (idea.reminders) {
-              idea.reminders = idea.reminders.map((reminder: any) => ({
-                ...reminder,
-                createdAt: new Date(reminder.createdAt),
-                updatedAt: new Date(reminder.updatedAt),
-                scheduledFor: new Date(reminder.scheduledFor)
-              }))
-            }
-
-            ideas.push({
-              idea,
-              score,
-              distance: 1 - score
-            })
-          }
-        }
+        searchResults.push({
+          idea,
+          score,
+          distance: 1 - score
+        })
       }
 
       this.logger.info('Idea search completed', {
         query: query.substring(0, 100),
-        resultsCount: ideas.length,
-        totalFound: results.total,
-        searchQuery,
+        resultsCount: searchResults.length,
         threshold
       })
 
-      return ideas
+      return searchResults
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const errorStack = error instanceof Error ? error.stack : undefined
-      
       this.logger.error('Failed to search ideas', {
-        error: {
-          message: errorMessage,
-          stack: errorStack,
-          name: error instanceof Error ? error.name : 'Unknown'
-        },
-        query: query.substring(0, 100),
-        indexName: this.config.indexName,
-        isConnected: this.isConnected
+        error: error instanceof Error ? error : new Error(String(error)),
+        query: query.substring(0, 100)
       })
       throw error
     }
@@ -508,99 +291,51 @@ export class IdeaStore {
 
   async listIdeas(filter?: IdeaFilter, limit: number = 50): Promise<Idea[]> {
     try {
-      if (!this.isConnected) {
-        this.logger.error('Redis client not connected for list operation')
-        throw new Error('Redis client not connected')
-      }
+      const baseQuery = this.db
+        .select()
+        .from(ideas)
 
-      let searchQuery = '*'
-      
+      const conditions = []
       if (filter) {
-        const filterParts: string[] = []
-        
-        if (filter.userId) {
-          filterParts.push(`@userId:"${filter.userId}"`)
-        }
-        if (filter.chatId) {
-          filterParts.push(`@chatId:[${filter.chatId} ${filter.chatId}]`)
-        }
-        if (filter.category) {
-          filterParts.push(`@category:"${filter.category}"`)
-        }
-        if (filter.priority) {
-          filterParts.push(`@priority:"${filter.priority}"`)
-        }
-        if (filter.status) {
-          filterParts.push(`@status:"${filter.status}"`)
-        }
-
-        if (filterParts.length > 0) {
-          searchQuery = filterParts.join(' ')
+        if (filter.userId) conditions.push(eq(ideas.userId, filter.userId))
+        if (filter.chatId) conditions.push(eq(ideas.chatId, filter.chatId))
+        if (filter.category) conditions.push(eq(ideas.category, filter.category))
+        if (filter.priority) conditions.push(eq(ideas.priority, filter.priority))
+        if (filter.status) conditions.push(eq(ideas.status, filter.status))
+        if (filter.tags && filter.tags.length > 0) {
+          conditions.push(sql`${ideas.tags} && ${filter.tags}`)
         }
       }
 
-      this.logger.debug('Executing list search', {
-        indexName: this.config.indexName,
-        searchQuery,
-        limit,
+      const queryWithFilter = conditions.length > 0 
+        ? baseQuery.where(and(...conditions))
+        : baseQuery
+
+      const ideaRows = await queryWithFilter
+        .orderBy(desc(ideas.createdAt))
+        .limit(limit)
+
+      const resultIdeas: Idea[] = []
+
+      for (const ideaRow of ideaRows) {
+        const reminderRows = await this.db
+          .select()
+          .from(reminders)
+          .where(eq(reminders.ideaId, ideaRow.id))
+
+        resultIdeas.push(this.mapIdeaRowToIdea(ideaRow, reminderRows))
+      }
+
+      this.logger.info('Listed ideas', {
+        count: resultIdeas.length,
         filter
       })
 
-      const results = await this.client.ft.search(
-        this.config.indexName,
-        searchQuery,
-        {
-          LIMIT: { from: 0, size: limit },
-          SORTBY: { BY: '$.createdAt', DIRECTION: 'DESC' },
-          RETURN: ['$']
-        }
-      )
-
-      const ideas: Idea[] = []
-
-      for (const doc of results.documents) {
-        if (doc.value) {
-          const ideaWithVector = JSON.parse(doc.value['$'] as string) as any
-          const { vector, ...idea } = ideaWithVector
-          
-          // Convert timestamps back to Date objects
-          idea.createdAt = new Date(idea.createdAt)
-          idea.updatedAt = new Date(idea.updatedAt)
-
-          // Convert reminder timestamps if they exist
-          if (idea.reminders) {
-            idea.reminders = idea.reminders.map((reminder: any) => ({
-              ...reminder,
-              createdAt: new Date(reminder.createdAt),
-              updatedAt: new Date(reminder.updatedAt),
-              scheduledFor: new Date(reminder.scheduledFor)
-            }))
-          }
-
-          ideas.push(idea)
-        }
-      }
-
-      this.logger.info('Listed ideas', { 
-        count: ideas.length, 
-        filter,
-        searchQuery,
-        totalFound: results.total
-      })
-      return ideas
+      return resultIdeas
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const errorStack = error instanceof Error ? error.stack : undefined
-      
       this.logger.error('Failed to list ideas', {
-        error: {
-          message: errorMessage,
-          stack: errorStack,
-          name: error instanceof Error ? error.name : 'Unknown'
-        },
-        filter,
-        indexName: this.config.indexName,
-        isConnected: this.isConnected
+        error: error instanceof Error ? error : new Error(String(error)),
+        filter
       })
       throw error
     }
@@ -609,26 +344,18 @@ export class IdeaStore {
   async getDueReminders(): Promise<Reminder[]> {
     try {
       const now = new Date()
-      const reminderKeys = await this.client.keys('reminder:*')
-      const dueReminders: Reminder[] = []
+      const dueReminderRows = await this.db
+        .select()
+        .from(reminders)
+        .where(
+          and(
+            eq(reminders.isActive, true),
+            eq(reminders.isSent, false),
+            sql`${reminders.scheduledFor} <= ${now}`
+          )
+        )
 
-      for (const key of reminderKeys) {
-        const data = await this.client.json.get(key, { path: '$' })
-        if (data && Array.isArray(data) && data.length > 0) {
-          const reminder = data[0] as any
-          
-          // Convert timestamps back to Date objects
-          reminder.scheduledFor = new Date(reminder.scheduledFor)
-          reminder.createdAt = new Date(reminder.createdAt)
-          reminder.updatedAt = new Date(reminder.updatedAt)
-
-          if (reminder.isActive && !reminder.isSent && reminder.scheduledFor <= now) {
-            dueReminders.push(reminder)
-          }
-        }
-      }
-
-      return dueReminders
+      return dueReminderRows.map(this.mapReminderRowToReminder)
     } catch (error) {
       this.logger.error('Failed to get due reminders', {
         error: error instanceof Error ? error : new Error(String(error))
@@ -639,12 +366,14 @@ export class IdeaStore {
 
   async markReminderSent(reminderId: string): Promise<void> {
     try {
-      const key = reminderId.startsWith('reminder:') ? reminderId : `reminder:${reminderId}`
-      const timestamp = new Date().getTime()
-      
-      await this.client.json.set(key, '$.isSent', true)
-      await this.client.json.set(key, '$.updatedAt', timestamp)
-      
+      await this.db
+        .update(reminders)
+        .set({
+          isSent: true,
+          updatedAt: new Date()
+        })
+        .where(eq(reminders.id, reminderId))
+
       this.logger.info('Reminder marked as sent', { reminderId })
     } catch (error) {
       this.logger.error('Failed to mark reminder as sent', {
@@ -657,11 +386,15 @@ export class IdeaStore {
 
   async getStats(): Promise<{ count: number; indexSize: number }> {
     try {
-      const info = await this.client.ft.info(this.config.indexName)
-      
+      const [result] = await this.db
+        .select({
+          count: sql<number>`count(*)`
+        })
+        .from(ideas)
+
       return {
-        count: parseInt(info.numDocs?.toString() || '0'),
-        indexSize: parseInt(info.invertedSzMb?.toString() || '0')
+        count: result.count,
+        indexSize: 0
       }
     } catch (error) {
       this.logger.error('Failed to get stats', {
@@ -673,14 +406,43 @@ export class IdeaStore {
 
   async disconnect(): Promise<void> {
     try {
-      if (this.isConnected) {
-        await this.client.disconnect()
-        this.logger.info('Disconnected from Redis')
-      }
+      this.isConnected = false
+      this.logger.info('Disconnected from PostgreSQL')
     } catch (error) {
-      this.logger.error('Error disconnecting from Redis', {
+      this.logger.error('Error disconnecting from PostgreSQL', {
         error: error instanceof Error ? error : new Error(String(error))
       })
+    }
+  }
+
+  private mapIdeaRowToIdea(ideaRow: IdeaRow, reminderRows: ReminderRow[] = []): Idea {
+    return {
+      id: ideaRow.id,
+      title: ideaRow.title,
+      content: ideaRow.content,
+      category: ideaRow.category,
+      priority: ideaRow.priority,
+      status: ideaRow.status,
+      tags: ideaRow.tags || [],
+      userId: ideaRow.userId,
+      chatId: ideaRow.chatId || undefined,
+      createdAt: ideaRow.createdAt,
+      updatedAt: ideaRow.updatedAt,
+      reminders: reminderRows.map(this.mapReminderRowToReminder)
+    }
+  }
+
+  private mapReminderRowToReminder(reminderRow: ReminderRow): Reminder {
+    return {
+      id: reminderRow.id,
+      ideaId: reminderRow.ideaId,
+      type: reminderRow.type,
+      scheduledFor: reminderRow.scheduledFor,
+      message: reminderRow.message || undefined,
+      isActive: reminderRow.isActive,
+      isSent: reminderRow.isSent,
+      createdAt: reminderRow.createdAt,
+      updatedAt: reminderRow.updatedAt
     }
   }
 } 

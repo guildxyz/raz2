@@ -4,11 +4,10 @@ import { IDEA_STORE_CONFIG } from '@raz2/shared'
 
 async function ideaStoreExample() {
   const config: IdeaStoreConfig = {
-    redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-    indexName: process.env.IDEA_INDEX_NAME || IDEA_STORE_CONFIG.DEFAULT_INDEX_NAME,
-    vectorDimension: IDEA_STORE_CONFIG.DEFAULT_VECTOR_DIMENSION,
+    databaseUrl: process.env.DATABASE_URL || 'postgresql://localhost:5432/ideas_db',
     openaiApiKey: process.env.OPENAI_API_KEY || '',
-    embeddingModel: process.env.EMBEDDING_MODEL || IDEA_STORE_CONFIG.DEFAULT_EMBEDDING_MODEL
+    embeddingModel: process.env.EMBEDDING_MODEL || IDEA_STORE_CONFIG.DEFAULT_EMBEDDING_MODEL,
+    vectorDimension: IDEA_STORE_CONFIG.DEFAULT_VECTOR_DIMENSION
   }
 
   if (!config.openaiApiKey) {

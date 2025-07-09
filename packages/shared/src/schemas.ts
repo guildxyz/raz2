@@ -84,9 +84,8 @@ export const EnvironmentConfigSchema = z.object({
   port: z.number().default(3000),
   weatherApiKey: z.string().optional(),
   newsApiKey: z.string().optional(),
-  redisUrl: z.string().optional(),
+  databaseUrl: z.string().optional(),
   openaiApiKey: z.string().optional(),
-  ideaIndexName: z.string().optional(),
   embeddingModel: z.string().optional(),
   webServerEnabled: z.string().optional(),
   webServerPort: z.string().optional(),
@@ -173,11 +172,10 @@ export const IdeaSearchOptionsSchema = z.object({
 })
 
 export const IdeaStoreConfigSchema = z.object({
-  redisUrl: z.string(),
-  indexName: z.string(),
-  vectorDimension: z.number(),
+  databaseUrl: z.string(),
   openaiApiKey: z.string(),
-  embeddingModel: z.string()
+  embeddingModel: z.string(),
+  vectorDimension: z.number()
 })
 
 export const CreateIdeaInputSchema = z.object({
