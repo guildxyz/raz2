@@ -721,18 +721,18 @@ I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
       await this.claude.initialize();
       this.logger.info('Claude client initialized');
 
-      // Initialize memory store if configured
+      // Initialize idea store if configured
       if (this.ideaService.isIdeaEnabled()) {
-        this.logger.info('Initializing memory store...');
+        this.logger.info('Initializing idea store...');
         try {
-          // Access the private memoryStore through a getter or make it accessible
-          // For now, we'll rely on lazy initialization in memory service
-          this.logger.info('Memory store initialization deferred to first use');
+          await this.ideaService.initializeStore();
+          this.logger.info('Idea store initialized successfully');
         } catch (error) {
-          this.logger.error('Failed to initialize memory store', {
+          this.logger.error('Failed to initialize idea store', {
             error: error instanceof Error ? error : new Error(String(error))
           });
-          // Continue without memory functionality
+          // Continue without idea functionality but log the failure
+          this.logger.warn('Bot will continue without idea management functionality');
         }
       }
 

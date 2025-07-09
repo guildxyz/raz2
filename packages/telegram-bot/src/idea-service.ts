@@ -23,16 +23,41 @@ export class IdeaService {
     }
 
     try {
+      this.logger.info('Initializing idea store connection and index...')
       await this.ideaStore.initialize()
       this.isInitialized = true
       this.logger.info('Idea store initialized successfully')
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
       this.logger.error('Failed to initialize idea store', {
-        error: error instanceof Error ? error : new Error(String(error))
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          name: error instanceof Error ? error.name : 'Unknown'
+        },
+        isEnabled: this.isEnabled,
+        hasStore: !!this.ideaStore,
+        isInitialized: this.isInitialized
       })
       this.isEnabled = false
       throw error
     }
+  }
+
+  async initializeStore(): Promise<void> {
+    if (!this.isEnabled || !this.ideaStore) {
+      this.logger.warn('Cannot initialize idea store - service is disabled or store is null')
+      return
+    }
+
+    if (this.isInitialized) {
+      this.logger.debug('Idea store already initialized')
+      return
+    }
+
+    await this.ensureInitialized()
   }
 
   async captureStrategicIdea(
@@ -202,6 +227,10 @@ export class IdeaService {
     category?: 'strategy' | 'product' | 'sales' | 'partnerships' | 'competitive' | 'market' | 'team' | 'operations'
   ): Promise<IdeaSearchResult[]> {
     if (!this.isEnabled || !this.ideaStore) {
+      this.logger.debug('Search skipped - service disabled or store not available', {
+        isEnabled: this.isEnabled,
+        hasStore: !!this.ideaStore
+      })
       return []
     }
 
@@ -227,11 +256,20 @@ export class IdeaService {
 
       return results
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
       this.logger.error('Failed to search ideas', {
-        error: error instanceof Error ? error : new Error(String(error)),
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          name: error instanceof Error ? error.name : 'Unknown'
+        },
         userId,
         query: query.substring(0, 50),
-        category
+        category,
+        isEnabled: this.isEnabled,
+        isInitialized: this.isInitialized
       })
       return []
     }
@@ -239,6 +277,10 @@ export class IdeaService {
 
   async getUserIdeas(userId: string, limit: number = 20): Promise<Idea[]> {
     if (!this.isEnabled || !this.ideaStore) {
+      this.logger.debug('Get user ideas skipped - service disabled or store not available', {
+        isEnabled: this.isEnabled,
+        hasStore: !!this.ideaStore
+      })
       return []
     }
 
@@ -254,9 +296,18 @@ export class IdeaService {
 
       return ideas
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
       this.logger.error('Failed to get user ideas', {
-        error: error instanceof Error ? error : new Error(String(error)),
-        userId
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          name: error instanceof Error ? error.name : 'Unknown'
+        },
+        userId,
+        isEnabled: this.isEnabled,
+        isInitialized: this.isInitialized
       })
       return []
     }
@@ -361,6 +412,10 @@ export class IdeaService {
 
   async getStats(userId?: string): Promise<{ count: number; categories: Record<string, number> }> {
     if (!this.isEnabled || !this.ideaStore) {
+      this.logger.debug('Get stats skipped - service disabled or store not available', {
+        isEnabled: this.isEnabled,
+        hasStore: !!this.ideaStore
+      })
       return { count: 0, categories: {} }
     }
 
@@ -379,9 +434,18 @@ export class IdeaService {
         categories
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
       this.logger.error('Failed to get stats', {
-        error: error instanceof Error ? error : new Error(String(error)),
-        userId
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          name: error instanceof Error ? error.name : 'Unknown'
+        },
+        userId,
+        isEnabled: this.isEnabled,
+        isInitialized: this.isInitialized
       })
       return { count: 0, categories: {} }
     }

@@ -317,7 +317,17 @@ export class IdeaStore {
 
   async searchIdeas(query: string, options: IdeaSearchOptions = {}): Promise<IdeaSearchResult[]> {
     try {
+      if (!this.isConnected) {
+        this.logger.error('Redis client not connected for search operation')
+        throw new Error('Redis client not connected')
+      }
+
       const { limit = 10, threshold = 0.1, filter } = options
+
+      this.logger.debug('Generating embedding for search query', {
+        query: query.substring(0, 100),
+        queryLength: query.length
+      })
 
       const queryEmbedding = await this.embedding.generateEmbedding(query)
 
@@ -348,6 +358,13 @@ export class IdeaStore {
           searchQuery = filterParts.join(' ')
         }
       }
+
+      this.logger.debug('Executing vector search', {
+        indexName: this.config.indexName,
+        searchQuery,
+        vectorDimension: queryEmbedding.vector.length,
+        limit
+      })
 
       const results = await this.client.ft.search(
         this.config.indexName,
@@ -394,14 +411,25 @@ export class IdeaStore {
       this.logger.info('Idea search completed', {
         query: query.substring(0, 100),
         resultsCount: ideas.length,
-        totalFound: results.total
+        totalFound: results.total,
+        searchQuery,
+        threshold
       })
 
       return ideas
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
       this.logger.error('Failed to search ideas', {
-        error: error instanceof Error ? error : new Error(String(error)),
-        query: query.substring(0, 100)
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          name: error instanceof Error ? error.name : 'Unknown'
+        },
+        query: query.substring(0, 100),
+        indexName: this.config.indexName,
+        isConnected: this.isConnected
       })
       throw error
     }
@@ -409,6 +437,11 @@ export class IdeaStore {
 
   async listIdeas(filter?: IdeaFilter, limit: number = 50): Promise<Idea[]> {
     try {
+      if (!this.isConnected) {
+        this.logger.error('Redis client not connected for list operation')
+        throw new Error('Redis client not connected')
+      }
+
       let searchQuery = '*'
       
       if (filter) {
@@ -435,6 +468,13 @@ export class IdeaStore {
         }
       }
 
+      this.logger.debug('Executing list search', {
+        indexName: this.config.indexName,
+        searchQuery,
+        limit,
+        filter
+      })
+
       const results = await this.client.ft.search(
         this.config.indexName,
         searchQuery,
@@ -459,12 +499,26 @@ export class IdeaStore {
         }
       }
 
-      this.logger.info('Listed ideas', { count: ideas.length, filter })
+      this.logger.info('Listed ideas', { 
+        count: ideas.length, 
+        filter,
+        searchQuery,
+        totalFound: results.total
+      })
       return ideas
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
       this.logger.error('Failed to list ideas', {
-        error: error instanceof Error ? error : new Error(String(error)),
-        filter
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          name: error instanceof Error ? error.name : 'Unknown'
+        },
+        filter,
+        indexName: this.config.indexName,
+        isConnected: this.isConnected
       })
       throw error
     }
