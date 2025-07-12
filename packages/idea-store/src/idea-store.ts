@@ -53,20 +53,49 @@ export class IdeaStore {
         `${input.title} ${input.content}`
       )
 
-      const [ideaRow] = await this.db
-        .insert(ideas)
-        .values({
-          title: input.title,
-          content: input.content,
-          category: input.category || 'strategy',
-          priority: input.priority || 'medium',
-          status: 'active',
-          tags: input.tags || [],
-          userId: input.userId,
-          chatId: input.chatId,
-          embedding: embeddingResponse.vector,
-        })
-        .returning()
+      let ideaRow: IdeaRow;
+      
+      try {
+        [ideaRow] = await this.db
+          .insert(ideas)
+          .values({
+            title: input.title,
+            content: input.content,
+            category: input.category || 'strategy',
+            priority: input.priority || 'medium',
+            status: 'active',
+            tags: input.tags || [],
+            userId: input.userId,
+            chatId: input.chatId,
+            embedding: embeddingResponse.vector,
+          })
+          .returning()
+      } catch (dbError: any) {
+        // Handle chat ID integer overflow until migration is deployed
+        if (dbError?.code === '22003' && input.chatId) {
+          this.logger.warn('Chat ID too large for current schema, retrying without chat ID', {
+            chatId: input.chatId,
+            title: input.title
+          });
+          
+          [ideaRow] = await this.db
+            .insert(ideas)
+            .values({
+              title: input.title,
+              content: input.content,
+              category: input.category || 'strategy',
+              priority: input.priority || 'medium',
+              status: 'active',
+              tags: input.tags || [],
+              userId: input.userId,
+              chatId: null, // Skip chat ID for now
+              embedding: embeddingResponse.vector,
+            })
+            .returning()
+        } else {
+          throw dbError;
+        }
+      }
 
       let reminderRows: ReminderRow[] = []
       if (input.reminders && input.reminders.length > 0) {
@@ -88,7 +117,8 @@ export class IdeaStore {
       this.logger.info('Idea created successfully', {
         id: ideaRow.id,
         title: input.title,
-        reminders: reminderRows.length
+        reminders: reminderRows.length,
+        chatIdSkipped: input.chatId && !ideaRow.chatId
       })
 
       return this.mapIdeaRowToIdea(ideaRow, reminderRows)

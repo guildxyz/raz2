@@ -20,6 +20,8 @@ import { IdeaForm } from './components/IdeaForm'
 import { BotManagement } from './components/BotManagement'
 import { DatabaseManagement } from './components/DatabaseManagement'
 import { AnalyticsDashboard } from './components/AnalyticsDashboard'
+import { ConfigurationManagement } from './components/ConfigurationManagement'
+import { LogsMonitoring } from './components/LogsMonitoring'
 import { useIdeaStore } from './hooks/useIdeaStore'
 import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus } from './types'
 
@@ -285,19 +287,9 @@ export default function App() {
       case 'analytics':
         return <AnalyticsDashboard />
       case 'config':
-        return (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Configuration Management</h2>
-            <p className="text-gray-600">Configuration management coming soon...</p>
-          </div>
-        )
+        return <ConfigurationManagement />
       case 'logs':
-        return (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">System Logs</h2>
-            <p className="text-gray-600">Log monitoring interface coming soon...</p>
-          </div>
-        )
+        return <LogsMonitoring />
       default:
         return null
     }

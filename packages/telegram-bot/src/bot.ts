@@ -404,12 +404,20 @@ Use /forget <ID> to delete an idea (e.g., /forget abc123)`;
       );
 
       if (idea) {
-        await this.sendMessage(chatId, `✅ Strategic insight captured: "${content}"\n\nCategory: ${idea.category}\nPriority: ${idea.priority}\nID: ${idea.id}`);
+        let message = `✅ Strategic insight captured: "${content}"\n\nCategory: ${idea.category}\nPriority: ${idea.priority}\nID: ${idea.id}`;
+        
+        // Check if chat ID was skipped (workaround for database schema issue)
+        if (chatId && !idea.chatId) {
+          message += '\n\n⚠️ Note: Chat context temporarily unavailable due to system update';
+        }
+        
+        await this.sendMessage(chatId, message);
         this.logger.info('User manually captured strategic idea', {
           chatId,
           userId,
           ideaId: idea.id,
-          contentLength: content.length
+          contentLength: content.length,
+          chatIdSkipped: chatId && !idea.chatId
         });
       } else {
         await this.sendMessage(chatId, '❌ Failed to capture strategic insight');
@@ -421,7 +429,14 @@ Use /forget <ID> to delete an idea (e.g., /forget abc123)`;
         userId,
         content: content.substring(0, 50)
       });
-      await this.sendMessage(chatId, '❌ Error capturing strategic insight');
+      
+      // Provide more specific error message
+      let errorMessage = '❌ Error capturing strategic insight';
+      if (error instanceof Error && error.message.includes('22003')) {
+        errorMessage = '❌ Unable to capture idea due to system limitations. Please try again after the next update.';
+      }
+      
+      await this.sendMessage(chatId, errorMessage);
     }
   }
 
@@ -646,7 +661,7 @@ Use /forget <ID> to delete an idea`);
         
         if (isStrategic) {
           try {
-            await Promise.race([
+            const capturedIdea = await Promise.race([
               this.ideaService.captureStrategicIdea(
                 'Conversation Insight',
                 text,
@@ -656,7 +671,7 @@ Use /forget <ID> to delete an idea`);
                 'medium',
                 ['conversation', 'auto-captured']
               ),
-              new Promise<void>((_, reject) => 
+              new Promise<any>((_, reject) => 
                 setTimeout(() => reject(new Error('Idea capture timeout')), 5000)
               )
             ]);
@@ -664,13 +679,16 @@ Use /forget <ID> to delete an idea`);
             this.logger.info('Auto-captured strategic insight from conversation', {
               chatId,
               userId: conversation.userId,
-              contentLength: text.length
+              contentLength: text.length,
+              ideaId: capturedIdea?.id,
+              chatIdSkipped: chatId && capturedIdea && !capturedIdea.chatId
             });
           } catch (error) {
             this.logger.warn('Error auto-capturing strategic insight, continuing', {
               error: error instanceof Error ? error : new Error(String(error)),
               chatId,
-              userId: conversation.userId
+              userId: conversation.userId,
+              isSchemaError: error instanceof Error && error.message.includes('22003')
             });
           }
         }
