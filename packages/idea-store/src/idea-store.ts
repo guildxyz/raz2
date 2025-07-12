@@ -1,22 +1,24 @@
-import { desc, eq, and, sql, cosineDistance, inArray } from 'drizzle-orm'
 import { createLogger } from '@raz2/shared'
-import { EmbeddingService } from './embedding'
-import { createDatabase, enablePgVector, type Database } from './db'
-import { ideas, reminders, type IdeaRow, type ReminderRow } from './schema'
+import { EmbeddingService } from './embedding.js'
+import { createDatabase, enablePgVector, type Database } from './db.js'
+import { ideas, reminders, type IdeaRow, type ReminderRow } from './schema.js'
+import { and, eq, desc, asc, isNull, sql, count, or, inArray, lt, gte, ilike } from 'drizzle-orm'
 import type {
   Idea,
+  IdeaWithVector,
   IdeaSearchResult,
   IdeaSearchOptions,
+  IdeaFilter,
   IdeaStoreConfig,
   CreateIdeaInput,
   UpdateIdeaInput,
-  IdeaFilter,
   Reminder,
   CreateReminderInput,
   IdeaCategory,
   IdeaPriority,
-  IdeaStatus
-} from './types'
+  IdeaStatus,
+  ReminderType
+} from './types.js'
 
 export class IdeaStore {
   private db: Database
@@ -258,7 +260,7 @@ export class IdeaStore {
       })
 
       const queryEmbedding = await this.embedding.generateEmbedding(query)
-      const similarity = sql`1 - (${cosineDistance(ideas.embedding, queryEmbedding.vector)})`
+      const similarity = sql`1 - (${ideas.embedding} <-> ${queryEmbedding.vector})`
 
       const baseQuery = this.db
         .select({

@@ -10,7 +10,8 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Activity
+  Activity,
+  MessageSquare
 } from 'lucide-react'
 
 import { IdeaList } from './components/IdeaList'
@@ -19,6 +20,7 @@ import { BotManagement } from './components/BotManagement'
 import { DatabaseManagement } from './components/DatabaseManagement'
 import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { LogsMonitoring } from './components/LogsMonitoring'
+import { ConversationExplorer } from './components/ConversationExplorer'
 import { 
   ideasAtom,
   loadingAtom,
@@ -29,17 +31,20 @@ import {
   refreshIdeasAtom,
   updateSubtaskAtom,
   createSubtaskAtom,
-  deleteSubtaskAtom
+  deleteSubtaskAtom,
+  conversationsAtom,
+  createConversationAtom
 } from './store'
 import { mockSystemStatus } from './data'
-import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask } from './types'
+import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask, CreateConversationInput } from './types'
 
-type TabType = 'overview' | 'ideas' | 'bot' | 'database' | 'analytics' | 'logs'
+type TabType = 'overview' | 'ideas' | 'conversations' | 'bot' | 'database' | 'analytics' | 'logs'
 
 export default function App() {
   const ideas = useAtomValue(ideasAtom)
   const loading = useAtomValue(loadingAtom)
   const error = useAtomValue(errorAtom)
+  const conversations = useAtomValue(conversationsAtom)
   const createIdea = useSetAtom(createIdeaAtom)
   const updateIdea = useSetAtom(updateIdeaAtom)
   const deleteIdea = useSetAtom(deleteIdeaAtom)
@@ -47,10 +52,12 @@ export default function App() {
   const updateSubtask = useSetAtom(updateSubtaskAtom)
   const createSubtask = useSetAtom(createSubtaskAtom)
   const deleteSubtask = useSetAtom(deleteSubtaskAtom)
+  const createConversation = useSetAtom(createConversationAtom)
   
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showForm, setShowForm] = useState(false)
   const [editingIdea, setEditingIdea] = useState<Idea | undefined>()
+  const [showConversationForm, setShowConversationForm] = useState(false)
   const [systemStatus] = useState(mockSystemStatus)
 
   useEffect(() => {
@@ -107,273 +114,366 @@ export default function App() {
     }
   }
 
+  const handleCreateConversation = () => {
+    setShowConversationForm(true)
+  }
+
+  const handleConversationFormSubmit = async (data: any) => {
+    const conversationData: CreateConversationInput = {
+      chatId: Math.floor(Math.random() * 1000000),
+      title: data.title,
+      type: data.type || 'private',
+      participants: [
+        {
+          id: 'user1',
+          name: data.participantName || 'User',
+          username: data.participantUsername,
+          role: 'user'
+        }
+      ],
+      tags: data.tags || [],
+      priority: data.priority || 'medium'
+    }
+    
+    await createConversation(conversationData)
+    setShowConversationForm(false)
+  }
+
   const handleFormCancel = () => {
     setShowForm(false)
     setEditingIdea(undefined)
   }
 
-  const handleCreateNew = () => {
-    setEditingIdea(undefined)
-    setShowForm(true)
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'healthy': return 'bg-green-100 text-green-800'
+      case 'warning': return 'bg-yellow-100 text-yellow-800'
+      case 'error': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'healthy': return <CheckCircle size={16} className="text-green-600" />
+      case 'warning': return <AlertCircle size={16} className="text-yellow-600" />
+      case 'error': return <AlertCircle size={16} className="text-red-600" />
+      default: return <Clock size={16} className="text-gray-600" />
+    }
   }
 
   const tabs = [
-    { id: 'overview', label: 'System Overview', icon: Activity },
-    { id: 'ideas', label: 'Ideas', icon: Lightbulb },
+    { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'ideas', label: 'Strategic Ideas', icon: Lightbulb },
+    { id: 'conversations', label: 'Conversations', icon: MessageSquare },
     { id: 'bot', label: 'Bot Management', icon: Bot },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'logs', label: 'Logs', icon: FileText },
   ] as const
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running':
-      case 'connected':
-      case 'active':
-        return 'text-green-600'
-      case 'warning':
-        return 'text-yellow-600'
-      case 'error':
-      case 'disconnected':
-        return 'text-red-600'
-      default:
-        return 'text-gray-600'
-    }
-  }
+  if (activeTab === 'conversations') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="border-b bg-white px-6 py-4">
+          <nav className="flex space-x-8">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon size={16} />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+        
+        <div className="p-6">
+          <ConversationExplorer onCreateConversation={handleCreateConversation} />
+        </div>
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'running':
-      case 'connected':
-      case 'active':
-        return <CheckCircle className="text-green-600" size={16} />
-      case 'warning':
-        return <AlertCircle className="text-yellow-600" size={16} />
-      case 'error':
-      case 'disconnected':
-        return <AlertCircle className="text-red-600" size={16} />
-      default:
-        return <Clock className="text-gray-600" size={16} />
-    }
+        {showConversationForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Conversation</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.target as HTMLFormElement)
+                handleConversationFormSubmit({
+                  title: formData.get('title'),
+                  type: formData.get('type'),
+                  participantName: formData.get('participantName'),
+                  participantUsername: formData.get('participantUsername'),
+                  priority: formData.get('priority')
+                })
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input
+                      name="title"
+                      type="text"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Conversation title"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select
+                      name="type"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="private">Private</option>
+                      <option value="group">Group</option>
+                      <option value="supergroup">Supergroup</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Participant Name</label>
+                    <input
+                      name="participantName"
+                      type="text"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Participant name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                    <select
+                      name="priority"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowConversationForm(false)}
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Lightbulb className="text-blue-600 mr-3" size={32} />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Strategic Intelligence System</h1>
-                <p className="text-sm text-gray-600">Guild.xyz CEO Dashboard with AI-Powered Kanban</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm">
-                {getStatusIcon(systemStatus.bot.status)}
-                <span className={getStatusColor(systemStatus.bot.status)}>
-                  Bot {systemStatus.bot.status}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Navigation */}
+      <div className="border-b bg-white px-6 py-4">
+        <nav className="flex space-x-8">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Icon size={16} />
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
+        </nav>
       </div>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="-mb-px flex space-x-8">
-              {tabs.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                    activeTab === id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon size={16} />
-                  {label}
-                  {id === 'ideas' && ideas.length > 0 && (
-                    <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                      {ideas.length}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </nav>
-          </div>
+      {/* Main Content */}
+      <div className="p-6">
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Strategic Intelligence Dashboard</h1>
+              <p className="text-gray-600 mt-1">
+                Manage strategic ideas, conversations, and AI-powered insights for Guild.xyz
+              </p>
+            </div>
 
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Lightbulb className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="ml-5 w-0 flex-1">
-                        <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">Strategic Ideas</dt>
-                          <dd className="text-lg font-medium text-gray-900">{ideas.length}</dd>
-                        </dl>
-                      </div>
-                    </div>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg shadow p-6 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Strategic Ideas</p>
+                    <p className="text-2xl font-bold text-blue-600">{ideas.length}</p>
                   </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <span className="text-green-600 font-medium">
-                        {ideas.filter(i => i.status === 'completed').length} completed
-                      </span>
-                      <span className="text-gray-500"> • </span>
-                      <span className="text-yellow-600 font-medium">
-                        {ideas.filter(i => i.status === 'in_progress').length} in progress
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Activity className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="ml-5 w-0 flex-1">
-                        <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">Active Tasks</dt>
-                          <dd className="text-lg font-medium text-gray-900">
-                            {ideas.reduce((total, idea) => total + idea.subtasks.length, 0)}
-                          </dd>
-                        </dl>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <span className="text-green-600 font-medium">
-                        {ideas.reduce((total, idea) => total + idea.subtasks.filter(s => s.status === 'done').length, 0)} done
-                      </span>
-                      <span className="text-gray-500"> • </span>
-                      <span className="text-blue-600 font-medium">
-                        {ideas.reduce((total, idea) => total + idea.subtasks.filter(s => s.status === 'in_progress').length, 0)} active
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Bot className={`h-6 w-6 ${getStatusColor(systemStatus.bot.status)}`} />
-                      </div>
-                      <div className="ml-5 w-0 flex-1">
-                        <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">Bot Status</dt>
-                          <dd className={`text-lg font-medium ${getStatusColor(systemStatus.bot.status)} capitalize`}>
-                            {systemStatus.bot.status}
-                          </dd>
-                        </dl>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <span className="text-gray-600">Uptime: {systemStatus.bot.uptime}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Clock className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <div className="ml-5 w-0 flex-1">
-                        <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">Est. Hours</dt>
-                          <dd className="text-lg font-medium text-gray-900">
-                            {ideas.reduce((total, idea) => 
-                              total + idea.subtasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0), 0
-                            )}h
-                          </dd>
-                        </dl>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 px-5 py-3">
-                    <div className="text-sm">
-                      <span className="text-gray-600">Across all active ideas</span>
-                    </div>
-                  </div>
+                  <Lightbulb className="h-8 w-8 text-blue-600" />
                 </div>
               </div>
+              <div className="bg-white rounded-lg shadow p-6 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Conversations</p>
+                    <p className="text-2xl font-bold text-green-600">{conversations.length}</p>
+                  </div>
+                  <MessageSquare className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Active Ideas</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {ideas.filter(idea => idea.status === 'active').length}
+                    </p>
+                  </div>
+                  <Activity className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Messages</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {conversations.reduce((sum, conv) => sum + conv.messages.length, 0)}
+                    </p>
+                  </div>
+                  <BarChart3 className="h-8 w-8 text-orange-600" />
+                </div>
+              </div>
+            </div>
 
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
-                <div className="space-y-3">
-                  {ideas.slice(0, 5).map((idea) => (
-                    <div key={idea.id} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Lightbulb className="text-blue-600 mr-3" size={16} />
-                        <span className="text-sm text-gray-900">{idea.title}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          {idea.subtasks.filter(s => s.status === 'done').length}/{idea.subtasks.length} tasks
+            {/* System Status */}
+            <div className="bg-white rounded-lg shadow border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="text-lg font-semibold text-gray-900">System Status</h2>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Object.entries(systemStatus).map(([key, status]) => (
+                    <div key={key} className="flex items-center space-x-3">
+                      {getStatusIcon(status.status)}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </p>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status.status)}`}>
+                          {status.status}
                         </span>
-                                                 <span className="text-xs text-gray-400">
-                           {format(new Date(idea.updatedAt), 'MMM d')}
-                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          )}
 
-          {activeTab === 'ideas' && (
+            {/* Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg shadow border">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Ideas</h2>
+                </div>
+                <div className="p-6">
+                  {ideas.slice(0, 5).map((idea) => (
+                    <div key={idea.id} className="flex items-center space-x-3 py-2">
+                      <Lightbulb size={16} className="text-blue-600" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{idea.title}</p>
+                        <p className="text-xs text-gray-500">{format(idea.createdAt, 'MMM d, yyyy')}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {ideas.length === 0 && (
+                    <p className="text-sm text-gray-500">No ideas yet. Create your first strategic idea!</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow border">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Conversations</h2>
+                </div>
+                <div className="p-6">
+                  {conversations.slice(0, 5).map((conversation) => (
+                    <div key={conversation.id} className="flex items-center space-x-3 py-2">
+                      <MessageSquare size={16} className="text-green-600" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{conversation.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {conversation.messages.length} messages • {format(conversation.lastActivity, 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {conversations.length === 0 && (
+                    <p className="text-sm text-gray-500">No conversations yet. Start your first strategic conversation!</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'ideas' && (
+          <>
             <IdeaList
               ideas={ideas}
               loading={loading}
               onEdit={handleEditIdea}
               onDelete={handleDeleteIdea}
               onUpdateStatus={handleUpdateStatus}
-              onCreate={handleCreateNew}
+              onCreate={() => setShowForm(true)}
               onUpdateSubtask={handleUpdateSubtask}
               onCreateSubtask={handleCreateSubtask}
               onDeleteSubtask={handleDeleteSubtask}
             />
-          )}
 
-          {activeTab === 'bot' && <BotManagement />}
-          {activeTab === 'database' && <DatabaseManagement />}
-          {activeTab === 'analytics' && <AnalyticsDashboard />}
-          {activeTab === 'logs' && <LogsMonitoring />}
+            {(showForm || editingIdea) && (
+              <IdeaForm
+                idea={editingIdea}
+                onSubmit={editingIdea ? handleUpdateIdea : handleCreateIdea}
+                onCancel={handleFormCancel}
+                loading={loading}
+              />
+            )}
 
-          {(showForm || editingIdea) && (
-            <IdeaForm
-              idea={editingIdea}
-              onSubmit={editingIdea ? handleUpdateIdea : handleCreateIdea}
-              onCancel={handleFormCancel}
-              loading={loading}
-            />
-          )}
+            {error && (
+              <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
+                <div className="flex">
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-          {error && (
-            <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-        </div>
+        {activeTab === 'bot' && <BotManagement />}
+        {activeTab === 'database' && <DatabaseManagement />}
+        {activeTab === 'analytics' && <AnalyticsDashboard />}
+        {activeTab === 'logs' && <LogsMonitoring />}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
-import type { EnvironmentConfig, LogContext, TelegramMessage } from './types'
-import { EnvironmentConfigSchema } from './schemas'
+import type { EnvironmentConfig, LogContext, TelegramMessage } from './types.js'
+import { EnvironmentConfigSchema } from './schemas.js'
 
 export function loadEnvironmentConfig(): EnvironmentConfig {
   const env = {

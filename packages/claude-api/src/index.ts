@@ -1,4 +1,4 @@
-export { ClaudeClient } from './client'
-export { ToolExecutor, createIdeaManagementTools } from './tools'
-export type { Tool, ToolCall, ToolResult } from './tools'
-export type { ClaudeResponse } from './types' 
+export { ClaudeClient } from './client.js'
+export { ToolExecutor, createIdeaManagementTools } from './tools.js'
+export type { Tool, ToolCall, ToolResult } from './tools.js'
+export type { ClaudeResponse } from './types.js' 

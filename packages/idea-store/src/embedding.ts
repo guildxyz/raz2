@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 import { createLogger } from '@raz2/shared'
-import type { EmbeddingResponse } from './types'
+import type { EmbeddingResponse } from './types.js'
 
 export class EmbeddingService {
   private client: OpenAI

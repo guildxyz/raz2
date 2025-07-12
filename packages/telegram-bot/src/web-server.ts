@@ -1,9 +1,9 @@
-import express, { Express, Request, Response } from 'express'
+import express from 'express'
 import cors from 'cors'
-import { resolve, join } from 'node:path'
-import { readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
 import { createLogger } from '@raz2/shared'
-import { IdeaService } from './idea-service'
+import { IdeaService } from './idea-service.js'
 
 export interface WebServerConfig {
   port: number
@@ -13,7 +13,7 @@ export interface WebServerConfig {
 }
 
 export class WebServer {
-  private app: Express
+  private app: express.Express
   private logger = createLogger('WebServer')
   private server: any = null
 
@@ -32,11 +32,11 @@ export class WebServer {
   }
 
   private setupRoutes(): void {
-    this.app.get('/api/health', (req: Request, res: Response) => {
+    this.app.get('/api/health', (req: express.Request, res: express.Response) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() })
     })
 
-    this.app.get('/api/ideas', async (req: Request, res: Response) => {
+    this.app.get('/api/ideas', async (req: express.Request, res: express.Response) => {
       try {
         const { userId, limit = 1000 } = req.query
         
@@ -52,7 +52,7 @@ export class WebServer {
       }
     })
 
-    this.app.get('/api/ideas/stats', async (req: Request, res: Response) => {
+    this.app.get('/api/ideas/stats', async (req: express.Request, res: express.Response) => {
       try {
         const { userId } = req.query
         const stats = await this.config.ideaService.getStats(userId as string)
@@ -63,7 +63,7 @@ export class WebServer {
       }
     })
 
-    this.app.post('/api/ideas', async (req: Request, res: Response) => {
+    this.app.post('/api/ideas', async (req: express.Request, res: express.Response) => {
       try {
         const { title, content, category, priority, tags, userId } = req.body
         
@@ -87,7 +87,7 @@ export class WebServer {
       }
     })
 
-    this.app.patch('/api/ideas/:id', async (req: Request, res: Response) => {
+    this.app.patch('/api/ideas/:id', async (req: express.Request, res: express.Response) => {
       try {
         const { id } = req.params
         const { title, content, category, priority, status, tags } = req.body
@@ -113,7 +113,7 @@ export class WebServer {
       }
     })
 
-    this.app.delete('/api/ideas/:id', async (req: Request, res: Response) => {
+    this.app.delete('/api/ideas/:id', async (req: express.Request, res: express.Response) => {
       try {
         const { id } = req.params
         const { userId } = req.query
@@ -135,7 +135,7 @@ export class WebServer {
       }
     })
 
-    this.app.post('/api/ideas/search', async (req: Request, res: Response) => {
+    this.app.post('/api/ideas/search', async (req: express.Request, res: express.Response) => {
       try {
         const { query, limit = 10, userId } = req.body
         
@@ -155,7 +155,7 @@ export class WebServer {
     if (existsSync(this.config.uiDistPath)) {
       this.app.use(express.static(this.config.uiDistPath))
       
-      this.app.get('*', (req: Request, res: Response) => {
+      this.app.get('*', (req: express.Request, res: express.Response) => {
         const indexPath = join(this.config.uiDistPath, 'index.html')
         if (existsSync(indexPath)) {
           res.sendFile(indexPath)
@@ -164,7 +164,7 @@ export class WebServer {
         }
       })
     } else {
-      this.app.get('*', (req: Request, res: Response) => {
+      this.app.get('*', (req: express.Request, res: express.Response) => {
         res.status(404).send(`Strategic Intelligence Dashboard not found at ${this.config.uiDistPath}. Please build the UI first.`)
       })
     }

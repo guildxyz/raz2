@@ -6,8 +6,8 @@ import {
   formatError,
   type ClaudeMessage 
 } from '@raz2/shared'
-import type { ClaudeResponse } from './types'
-import { createIdeaManagementTools, ToolExecutor, type Tool, type ToolCall, type ToolResult } from './tools'
+import type { ClaudeResponse } from './types.js'
+import { createIdeaManagementTools, ToolExecutor, type Tool, type ToolCall, type ToolResult } from './tools.js'
 
 export class ClaudeClient {
   private client: Anthropic

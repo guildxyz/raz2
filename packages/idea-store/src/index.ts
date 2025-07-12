@@ -1,5 +1,5 @@
-export { IdeaStore } from './idea-store'
-export { EmbeddingService } from './embedding'
+export { IdeaStore } from './idea-store.js'
+export { EmbeddingService } from './embedding.js'
 export type {
   Idea,
   IdeaWithVector,
@@ -16,4 +16,4 @@ export type {
   IdeaPriority,
   IdeaStatus,
   ReminderType
-} from './types' 
+} from './types.js' 

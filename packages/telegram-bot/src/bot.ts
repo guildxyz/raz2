@@ -2,10 +2,10 @@ import TelegramBot from 'node-telegram-bot-api';
 import { ClaudeClient, ToolExecutor } from '@raz2/claude-api';
 import { IdeaStore } from '@raz2/idea-store';
 import { createLogger, sanitizeInput, parseCommand, IDEA_STORE_CONFIG } from '@raz2/shared';
-import { BotConfig, ConversationState, ProcessedMessage } from './types';
-import { IdeaService } from './idea-service';
-import { WebServer } from './web-server';
-import { PersonalityAnalyzer, MessageSample } from './personality-analyzer';
+import { BotConfig, ConversationState, ProcessedMessage } from './types.js';
+import { IdeaService } from './idea-service.js';
+import { WebServer } from './web-server.js';
+import { PersonalityAnalyzer, MessageSample } from './personality-analyzer.js';
 import { resolve, join } from 'node:path';
 
 export class TelegramBotService {
