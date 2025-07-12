@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   Bot, 
   Users, 
@@ -8,12 +8,10 @@ import {
   RotateCcw, 
   Send,
   Search,
-  Filter,
   Clock,
   CheckCircle,
   AlertCircle,
   User,
-  Calendar,
   Hash,
   Phone,
   Mail,
@@ -30,13 +28,14 @@ import {
   Shield,
   Zap,
   Brain,
-  Globe,
   Star,
   Target,
-  Sliders,
   Crown,
   Award,
-  Scale
+  Scale,
+  ArrowRight,
+  ExternalLink,
+  Link
 } from 'lucide-react'
 
 interface Conversation {
@@ -50,16 +49,7 @@ interface Conversation {
   status: 'active' | 'inactive'
 }
 
-interface BotUser {
-  id: string
-  username: string
-  firstName: string
-  lastName?: string
-  joinedAt: Date
-  messageCount: number
-  lastSeen: Date
-  isActive: boolean
-}
+
 
 interface BotStats {
   totalUsers: number
@@ -142,7 +132,7 @@ interface BotInstance {
 }
 
 export const BotManagement = () => {
-  const [activeTab, setActiveTab] = useState<'bots' | 'conversations' | 'users' | 'contacts' | 'controls'>('bots')
+  const [activeTab, setActiveTab] = useState<'bots' | 'conversations' | 'contacts' | 'controls'>('bots')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContact, setSelectedContact] = useState<string | null>(null)
   const [selectedBot, setSelectedBot] = useState<string | null>('strategic-ai')
@@ -182,38 +172,7 @@ export const BotManagement = () => {
     }
   ])
 
-  const [users] = useState<BotUser[]>([
-    {
-      id: '123456789',
-      username: 'razvan',
-      firstName: 'Razvan',
-      lastName: 'Cosma',
-      joinedAt: new Date('2024-01-15'),
-      messageCount: 847,
-      lastSeen: new Date(Date.now() - 5 * 60 * 1000),
-      isActive: true
-    },
-    {
-      id: '987654321',
-      username: 'john_doe',
-      firstName: 'John',
-      lastName: 'Doe',
-      joinedAt: new Date('2024-02-20'),
-      messageCount: 156,
-      lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      isActive: false
-    },
-    {
-      id: '456789123',
-      username: 'sarah_m',
-      firstName: 'Sarah',
-      lastName: 'Miller',
-      joinedAt: new Date('2024-03-10'),
-      messageCount: 93,
-      lastSeen: new Date(Date.now() - 15 * 60 * 1000),
-      isActive: true
-    }
-  ])
+
 
   const [botStats] = useState<BotStats>({
     totalUsers: 3,
@@ -469,17 +428,21 @@ export const BotManagement = () => {
   ])
 
   const currentBot = bots.find(bot => bot.id === selectedBot)
+  const currentBotConversations = conversations.filter(conv => 
+    selectedBot === 'strategic-ai' ? true : false // In real app, filter by bot
+  )
+
+  const currentBotContacts = contacts.filter(contact => 
+    selectedBot === 'strategic-ai' ? true : false // In real app, filter by bot
+  )
+
   const filteredConversations = conversations.filter(conv =>
     conv.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conv.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+
 
   const filteredContacts = contacts.filter(contact =>
     contact.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -602,31 +565,150 @@ export const BotManagement = () => {
   const totalInfluence = contacts.reduce((sum, contact) => sum + contact.influenceWeight, 0)
   const averageInfluence = totalInfluence / contacts.length
 
+  const navigateToTab = (tab: string, data?: any) => {
+    setActiveTab(tab as any)
+    if (data?.userId) {
+      setSelectedContact(data.userId)
+    }
+  }
+
+  const renderBotSelector = () => {
+    if (!currentBot) return null
+    
+    return (
+      <div className="bg-blue-50 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 rounded-full p-2">
+              <Bot className="text-blue-600" size={20} />
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-900">Currently Managing: {currentBot.name}</h4>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  {getStatusIcon(currentBot.status)}
+                  {currentBot.status}
+                </span>
+                <span>{currentBot.version}</span>
+                <span>{currentBot.deployment.environment}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedBot || ''}
+              onChange={(e) => setSelectedBot(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {bots.map((bot) => (
+                <option key={bot.id} value={bot.id}>
+                  {bot.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => navigateToTab('bots')}
+              className="flex items-center gap-1 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+            >
+              <Settings size={14} />
+              Configure
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderQuickStats = () => {
+    if (!currentBot) return null
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div 
+          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+          onClick={() => navigateToTab('bots')}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Bot className="text-blue-600" size={20} />
+            <h5 className="font-medium text-gray-900">Bot Fleet</h5>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{bots.length}</div>
+          <div className="text-sm text-gray-500">Active bots</div>
+        </div>
+
+        <div 
+          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+          onClick={() => navigateToTab('conversations')}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <MessageSquare className="text-green-600" size={20} />
+            <h5 className="font-medium text-gray-900">Conversations</h5>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{currentBotConversations.length}</div>
+          <div className="text-sm text-gray-500">Active chats</div>
+        </div>
+
+        <div 
+          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+          onClick={() => navigateToTab('contacts')}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Scale className="text-purple-600" size={20} />
+            <h5 className="font-medium text-gray-900">Contacts</h5>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{currentBotContacts.length}</div>
+          <div className="text-sm text-gray-500">Network contacts</div>
+        </div>
+
+        <div 
+          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+          onClick={() => navigateToTab('controls')}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Settings className="text-gray-600" size={20} />
+            <h5 className="font-medium text-gray-900">Controls</h5>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{currentBot?.stats.messagesProcessed || 0}</div>
+          <div className="text-sm text-gray-500">Messages processed</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      {currentBot && (
+      {currentBot && activeTab !== 'bots' && (
+        <>
+          {renderBotSelector()}
+          {renderQuickStats()}
+        </>
+      )}
+
+      {currentBot && activeTab === 'bots' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Selected Bot</p>
+                <p className="text-sm font-medium text-gray-600">Fleet Status</p>
                 <div className="flex items-center gap-2 mt-1">
-                  {getStatusIcon(currentBot.status)}
-                  <span className={`text-sm font-semibold ${getStatusColor(currentBot.status)}`}>
-                    {currentBot.name}
+                  <CheckCircle className="text-green-600" size={16} />
+                  <span className="text-sm font-semibold text-green-600">
+                    {bots.filter(b => b.status === 'running').length} Running
                   </span>
                 </div>
               </div>
               <Bot className="text-blue-600" size={24} />
             </div>
-            <p className="text-xs text-gray-500 mt-4">Version: {currentBot.version}</p>
+            <p className="text-xs text-gray-500 mt-4">{bots.length} total bots</p>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{currentBot.stats.totalUsers}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {bots.reduce((sum, bot) => sum + bot.stats.totalUsers, 0)}
+                </p>
               </div>
               <Users className="text-green-600" size={24} />
             </div>
@@ -635,20 +717,22 @@ export const BotManagement = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Conversations</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{currentBot.stats.activeConversations}</p>
+                <p className="text-sm font-medium text-gray-600">Total Messages</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {bots.reduce((sum, bot) => sum + bot.stats.messagesProcessed, 0).toLocaleString()}
+                </p>
               </div>
-              <MessageSquare className="text-purple-600" size={24} />
+              <Hash className="text-orange-600" size={24} />
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Messages Processed</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{currentBot.stats.messagesProcessed.toLocaleString()}</p>
+                <p className="text-sm font-medium text-gray-600">Avg Response</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">1.1s</p>
               </div>
-              <Hash className="text-orange-600" size={24} />
+              <BarChart3 className="text-purple-600" size={24} />
             </div>
           </div>
         </div>
@@ -660,84 +744,83 @@ export const BotManagement = () => {
             <div className="flex space-x-4">
               <button
                 onClick={() => setActiveTab('bots')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   activeTab === 'bots'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Bot Fleet
+                <div className="flex items-center gap-2">
+                  <Bot size={16} />
+                  Bot Fleet
+                  <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
+                    {bots.length}
+                  </span>
+                </div>
               </button>
               <button
                 onClick={() => setActiveTab('conversations')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   activeTab === 'conversations'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Conversations
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
-                  activeTab === 'users'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Users
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={16} />
+                  Conversations
+                  {currentBot && (
+                    <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
+                      {currentBotConversations.length}
+                    </span>
+                  )}
+                </div>
               </button>
               <button
                 onClick={() => setActiveTab('contacts')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   activeTab === 'contacts'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Contacts
+                <div className="flex items-center gap-2">
+                  <Scale size={16} />
+                  Contacts
+                  {currentBot && (
+                    <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
+                      {currentBotContacts.length}
+                    </span>
+                  )}
+                </div>
               </button>
               <button
                 onClick={() => setActiveTab('controls')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   activeTab === 'controls'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Controls
+                <div className="flex items-center gap-2">
+                  <Settings size={16} />
+                  Controls
+                </div>
               </button>
             </div>
             
-            <div className="flex items-center gap-3">
-              {activeTab !== 'bots' && currentBot && (
-                <select
-                  value={selectedBot || ''}
-                  onChange={(e) => setSelectedBot(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {bots.map((bot) => (
-                    <option key={bot.id} value={bot.id}>
-                      {bot.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              
-              {(activeTab === 'conversations' || activeTab === 'users' || activeTab === 'contacts' || activeTab === 'bots') && (
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                  <input
-                    type="text"
-                    placeholder={`Search ${activeTab}...`}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-            </div>
+            {(activeTab === 'conversations' || activeTab === 'contacts' || activeTab === 'bots') && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder={`Search ${activeTab}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -900,6 +983,24 @@ export const BotManagement = () => {
 
           {activeTab === 'conversations' && (
             <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Conversations - {currentBot?.name}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigateToTab('contacts')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+                  >
+                    <Scale size={14} />
+                    View Influence Network
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    {filteredConversations.length} active conversations
+                  </span>
+                </div>
+              </div>
+
               {filteredConversations.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageSquare className="mx-auto text-gray-400 mb-4" size={48} />
@@ -927,61 +1028,16 @@ export const BotManagement = () => {
                           </div>
                         </div>
                       </div>
-                      <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                        View
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div className="space-y-4">
-              {filteredUsers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="mx-auto text-gray-400 mb-4" size={48} />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-                  <p className="text-gray-500">Try adjusting your search terms</p>
-                </div>
-              ) : (
-                filteredUsers.map((user) => (
-                  <div key={user.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-green-100 rounded-full p-2">
-                          <User className="text-green-600" size={16} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-gray-900">
-                              {user.firstName} {user.lastName}
-                            </h4>
-                            <span className="text-sm text-gray-500">@{user.username}</span>
-                            {user.isActive ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Inactive
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                            <span>Joined {user.joinedAt.toLocaleDateString()}</span>
-                            <span>{user.messageCount} messages</span>
-                            <span>Last seen {formatTimeAgo(user.lastSeen)}</span>
-                          </div>
-                        </div>
-                      </div>
                       <div className="flex items-center gap-2">
-                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                          Message
+                        <button
+                          onClick={() => navigateToTab('contacts', { userId: conversation.userId })}
+                          className="flex items-center gap-1 px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+                        >
+                          <Scale size={14} />
+                          Influence
                         </button>
-                        <button className="text-gray-600 hover:text-gray-700 text-sm font-medium">
-                          Block
+                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                          View
                         </button>
                       </div>
                     </div>
@@ -1055,9 +1111,7 @@ export const BotManagement = () => {
                   <div className="bg-white rounded-lg p-4">
                     <h5 className="font-medium text-gray-900 mb-3">Influence Distribution</h5>
                     <div className="space-y-2">
-                      {contacts.map((contact) => {
-                        const influenceLevel = getInfluenceLevel(contact.influenceWeight)
-                        return (
+                      {contacts.map((contact) => (
                           <div key={contact.id} className="flex items-center gap-3">
                             <div className="w-24 text-sm text-gray-600 truncate">
                               {contact.firstName}
@@ -1072,8 +1126,7 @@ export const BotManagement = () => {
                               {contact.influenceWeight}
                             </div>
                           </div>
-                        )
-                      })}
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -1280,10 +1333,25 @@ export const BotManagement = () => {
 
           {activeTab === 'controls' && (
             <div className="space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Bot Controls - {currentBot?.name}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigateToTab('bots')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  >
+                    <Settings size={14} />
+                    Advanced Config
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => handleBotAction('start')}
-                  disabled={botStats.status === 'running'}
+                  disabled={currentBot?.status === 'running'}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   <Play size={16} />
@@ -1291,7 +1359,7 @@ export const BotManagement = () => {
                 </button>
                 <button
                   onClick={() => handleBotAction('stop')}
-                  disabled={botStats.status === 'stopped'}
+                  disabled={currentBot?.status === 'stopped'}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   <Pause size={16} />
@@ -1320,9 +1388,9 @@ export const BotManagement = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Choose a user...</option>
-                      {users.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.firstName} {user.lastName} (@{user.username})
+                      {currentBotContacts.map((contact) => (
+                        <option key={contact.id} value={contact.id}>
+                          {contact.firstName} {contact.lastName} (@{contact.username})
                         </option>
                       ))}
                     </select>

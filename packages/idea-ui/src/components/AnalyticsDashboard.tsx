@@ -1,16 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
-  BarChart3, 
-  TrendingUp, 
   Users, 
   MessageSquare, 
   Lightbulb,
-  Calendar,
   Clock,
-  Target,
-  Zap,
   Activity,
-  Filter,
   Download,
   RefreshCw,
   ArrowUp,

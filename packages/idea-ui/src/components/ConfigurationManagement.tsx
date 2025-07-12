@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   Settings, 
   Eye, 
   EyeOff, 
   Save, 
-  RefreshCw, 
   Shield, 
   Database, 
   Bot, 
@@ -12,13 +11,9 @@ import {
   Server, 
   Key, 
   AlertTriangle, 
-  CheckCircle, 
   Copy,
   Edit3,
-  Trash2,
-  Plus,
   Search,
-  Filter,
   Download,
   Upload
 } from 'lucide-react'

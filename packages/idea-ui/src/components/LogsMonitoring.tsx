@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { 
   FileText, 
   Search, 
-  Filter, 
   Download,
   RefreshCw,
-  Eye,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -17,7 +15,6 @@ import {
   Trash2,
   Play,
   Pause,
-  Calendar,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -52,7 +49,7 @@ export const LogsMonitoring = () => {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([])
   const [isRealTime, setIsRealTime] = useState(true)
-  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
+
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
   
   const [filter, setFilter] = useState<LogFilter>({

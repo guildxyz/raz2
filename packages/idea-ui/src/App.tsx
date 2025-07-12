@@ -32,7 +32,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showForm, setShowForm] = useState(false)
   const [editingIdea, setEditingIdea] = useState<Idea | undefined>()
-  const [systemStatus, setSystemStatus] = useState({
+  const [systemStatus] = useState({
     bot: { status: 'running', uptime: '2h 15m', lastActivity: '2 minutes ago' },
     database: { status: 'connected', latency: '15ms', connections: 3 },
     claude: { status: 'active', tokensUsed: 45230, requestsToday: 127 },
