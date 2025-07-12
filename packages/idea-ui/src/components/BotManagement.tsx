@@ -32,10 +32,7 @@ import {
   Target,
   Crown,
   Award,
-  Scale,
-  ArrowRight,
-  ExternalLink,
-  Link
+  Scale
 } from 'lucide-react'
 
 interface Conversation {
@@ -51,13 +48,7 @@ interface Conversation {
 
 
 
-interface BotStats {
-  totalUsers: number
-  activeConversations: number
-  messagesProcessed: number
-  uptime: string
-  status: 'running' | 'stopped' | 'error'
-}
+
 
 interface Contact {
   id: string
@@ -174,13 +165,7 @@ export const BotManagement = () => {
 
 
 
-  const [botStats] = useState<BotStats>({
-    totalUsers: 3,
-    activeConversations: 2,
-    messagesProcessed: 1096,
-    uptime: '2h 45m',
-    status: 'running'
-  })
+
 
   const [messageToSend, setMessageToSend] = useState('')
   const [selectedUser, setSelectedUser] = useState('')
@@ -428,11 +413,11 @@ export const BotManagement = () => {
   ])
 
   const currentBot = bots.find(bot => bot.id === selectedBot)
-  const currentBotConversations = conversations.filter(conv => 
+  const currentBotConversations = conversations.filter(() => 
     selectedBot === 'strategic-ai' ? true : false // In real app, filter by bot
   )
 
-  const currentBotContacts = contacts.filter(contact => 
+  const currentBotContacts = contacts.filter(() => 
     selectedBot === 'strategic-ai' ? true : false // In real app, filter by bot
   )
 
@@ -471,20 +456,7 @@ export const BotManagement = () => {
     return `${diffDays}d ago`
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running':
-      case 'active':
-        return 'text-green-600'
-      case 'stopped':
-      case 'inactive':
-        return 'text-gray-600'
-      case 'error':
-        return 'text-red-600'
-      default:
-        return 'text-gray-600'
-    }
-  }
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {
