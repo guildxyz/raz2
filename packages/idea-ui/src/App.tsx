@@ -19,6 +19,7 @@ import { IdeaList } from './components/IdeaList'
 import { IdeaForm } from './components/IdeaForm'
 import { BotManagement } from './components/BotManagement'
 import { DatabaseManagement } from './components/DatabaseManagement'
+import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { useIdeaStore } from './hooks/useIdeaStore'
 import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus } from './types'
 
@@ -282,12 +283,7 @@ export default function App() {
       case 'database':
         return <DatabaseManagement />
       case 'analytics':
-        return (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Analytics Dashboard</h2>
-            <p className="text-gray-600">Analytics and insights coming soon...</p>
-          </div>
-        )
+        return <AnalyticsDashboard />
       case 'config':
         return (
           <div className="bg-white rounded-lg shadow p-6">
