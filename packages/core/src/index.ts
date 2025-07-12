@@ -1,4 +1,5 @@
 import { createLogger, loadEnvironmentConfig, formatError } from '@raz2/shared'
+import { ClaudeClient } from '@raz2/claude-api'
 import { CoreServer } from './server'
 
 const logger = createLogger('core-main')
@@ -19,6 +20,8 @@ async function main() {
       throw new Error('OPENAI_API_KEY environment variable is required')
     }
 
+    const claude = new ClaudeClient()
+
     const ideaStoreConfig = {
       databaseUrl: env.databaseUrl,
       openaiApiKey: env.openaiApiKey,
@@ -38,7 +41,8 @@ async function main() {
 
     const server = new CoreServer(
       ideaStoreConfig,
-      serverConfig
+      serverConfig,
+      claude
     )
 
     await server.start()
@@ -57,4 +61,8 @@ if (require.main === module) {
 
 export { CoreServer }
 export * from './types'
-export * from './services/ideaService' 
+export * from './services/ideaService'
+export * from './services/conversationService'
+export * from './services/contactService'
+export * from './services/aiService'
+export * from './services/notificationService' 

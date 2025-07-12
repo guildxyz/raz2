@@ -1,6 +1,6 @@
 import type { AITaskBreakdown, IdeaCategory, IdeaPriority, SubtaskStatus } from '../types'
 
-const API_BASE_URL = 'http://localhost:3000/api'
+const API_BASE_URL = import.meta.env.PROD ? 'http://localhost:3000/api' : null
 
 interface BreakdownRequest {
   title: string
@@ -10,8 +10,12 @@ interface BreakdownRequest {
 }
 
 export const aiTaskBreakdownService = {
-  async breakdownIdea(idea: BreakdownRequest): Promise<AITaskBreakdown> {
+  async breakdownIdea(idea: any) {
     try {
+      if (!API_BASE_URL) {
+        throw new Error('API disabled in development mode')
+      }
+      
       const response = await fetch(`${API_BASE_URL}/ideas/breakdown`, {
         method: 'POST',
         headers: {
@@ -26,10 +30,9 @@ export const aiTaskBreakdownService = {
 
       return await response.json()
     } catch (error) {
-      console.warn('AI service not available, using mock breakdown:', error)
       return generateMockBreakdown(idea)
     }
-  }
+  },
 }
 
 function generateMockBreakdown(idea: BreakdownRequest): AITaskBreakdown {

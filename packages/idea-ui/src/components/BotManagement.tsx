@@ -1,57 +1,73 @@
-import { useState } from 'react'
-import { 
-  Bot, 
-  Users, 
-  MessageSquare, 
-  Play, 
-  Pause, 
-  RotateCcw, 
+import { useState, useEffect } from 'react'
+import {
+  Bot,
+  Users,
+  MessageSquare,
+  Settings,
   Send,
+  BarChart3,
   Search,
-  Clock,
+  User,
+  Play,
+  Pause,
+  RotateCcw,
   CheckCircle,
   AlertCircle,
-  User,
-  Hash,
-  Activity,
-  Settings,
-  Plus,
-  Zap,
-  Brain,
-  Star,
+  Clock,
   Crown,
-  BarChart3,
+  Star,
+  Brain,
+  Zap,
+  Activity,
+  Hash,
   Eye,
   EyeOff,
-  Save,
-  X,
-  Edit3,
   Shield,
-  Key
+  X,
+  Plus,
+  Edit,
+  Save,
+  Cancel
 } from 'lucide-react'
+import type { BotInstance, Conversation, Contact } from '../types'
 import { 
-  mockConversations, 
-  mockContacts, 
-  mockBots,
-  type Conversation,
-  type Contact,
-  type BotInstance
+  mockBots, 
+  mockConversations as mockConversationData,
+  mockContacts as mockContactData
 } from '../data'
+import { botService, type BotInfo } from '../services/botService'
 
 export const BotManagement = () => {
   const [selectedBot, setSelectedBot] = useState<string>('strategic-ai')
   const [activeManagementTab, setActiveManagementTab] = useState<'conversations' | 'contacts' | 'controls' | 'telegram' | 'analytics'>('conversations')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedContact, setSelectedContact] = useState<string | null>(null)
   const [messageToSend, setMessageToSend] = useState('')
   const [selectedUser, setSelectedUser] = useState('')
   const [showBotToken, setShowBotToken] = useState(false)
   const [isEditingTelegram, setIsEditingTelegram] = useState(false)
   const [telegramConfig, setTelegramConfig] = useState<BotInstance['telegram'] | null>(null)
+  const [realBotInfo, setRealBotInfo] = useState<BotInfo | null>(null)
+  const [loadingBotInfo, setLoadingBotInfo] = useState(true)
 
-  const [conversations] = useState<Conversation[]>(mockConversations)
-  const [contacts] = useState<Contact[]>(mockContacts)
+  const [conversations] = useState<Conversation[]>(mockConversationData)
+  const [contacts] = useState<Contact[]>(mockContactData)
   const [bots] = useState<BotInstance[]>(mockBots)
+
+  useEffect(() => {
+    const fetchBotInfo = async () => {
+      setLoadingBotInfo(true)
+      try {
+        const info = await botService.getBotInfo()
+        setRealBotInfo(info)
+      } catch (error) {
+        console.error('Failed to fetch bot info:', error)
+      } finally {
+        setLoadingBotInfo(false)
+      }
+    }
+
+    fetchBotInfo()
+  }, [])
 
   const currentBot = bots.find(bot => bot.id === selectedBot)
   const currentBotConversations = conversations.filter(() => selectedBot === 'strategic-ai' ? true : false)
@@ -216,6 +232,68 @@ export const BotManagement = () => {
 
   return (
     <div className="space-y-8">
+      {/* Real Bot Information Section */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Live Bot Information</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm text-gray-600">Connected to Telegram</span>
+          </div>
+        </div>
+        
+        {loadingBotInfo ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Loading bot information...</span>
+          </div>
+        ) : realBotInfo ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <img
+                  src={botService.getBotPhotoUrl()}
+                  alt={`${realBotInfo.firstName} profile`}
+                  className="w-16 h-16 rounded-full object-cover bg-gray-200"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Bot className="text-blue-600" size={24} />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{realBotInfo.firstName}</h3>
+                <p className="text-blue-600">@{realBotInfo.username}</p>
+                <p className="text-sm text-gray-500">ID: {realBotInfo.id}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-white rounded-lg border">
+                <Users className="w-5 h-5 text-blue-600 mx-auto mb-1" />
+                <div className="text-xs text-gray-500">Can Join Groups</div>
+                <div className="text-sm font-medium">{realBotInfo.canJoinGroups ? 'Yes' : 'No'}</div>
+              </div>
+              <div className="text-center p-3 bg-white rounded-lg border">
+                <MessageSquare className="w-5 h-5 text-green-600 mx-auto mb-1" />
+                <div className="text-xs text-gray-500">Read All Messages</div>
+                <div className="text-sm font-medium">{realBotInfo.canReadAllGroupMessages ? 'Yes' : 'No'}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Bot className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600">Bot information not available</p>
+            <p className="text-sm text-gray-500">Make sure the bot is connected to Telegram</p>
+          </div>
+        )}
+      </div>
+
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -498,7 +576,7 @@ export const BotManagement = () => {
                       onClick={startEditingTelegram}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      <Edit3 size={16} />
+                      <Edit size={16} />
                       Edit Configuration
                     </button>
                   ) : (
@@ -535,7 +613,7 @@ export const BotManagement = () => {
                             <input
                               type={showBotToken ? 'text' : 'password'}
                               value={isEditingTelegram ? telegramConfig?.botToken || '' : currentBot.telegram.botToken}
-                              onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ ...prev, botToken: e.target.value }))}
+                              onChange={(e) => isEditingTelegram && telegramConfig && setTelegramConfig(prev => prev ? { ...prev, botToken: e.target.value } : null)}
                               readOnly={!isEditingTelegram}
                               className={`w-full px-3 py-2 border rounded-md pr-10 ${
                                 isEditingTelegram 
@@ -558,7 +636,7 @@ export const BotManagement = () => {
                           <input
                             type="text"
                             value={isEditingTelegram ? telegramConfig?.username || '' : currentBot.telegram.username}
-                            onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ ...prev, username: e.target.value }))}
+                            onChange={(e) => isEditingTelegram && telegramConfig && setTelegramConfig(prev => prev ? { ...prev, username: e.target.value } : null)}
                             readOnly={!isEditingTelegram}
                             className={`w-full px-3 py-2 border rounded-md ${
                               isEditingTelegram 
@@ -584,8 +662,10 @@ export const BotManagement = () => {
                               {isEditingTelegram && (
                                 <button
                                   onClick={() => {
-                                    const newUsers = telegramConfig.allowedUsers.filter((_, i) => i !== index)
-                                    setTelegramConfig(prev => ({ ...prev, allowedUsers: newUsers }))
+                                    if (telegramConfig) {
+                                      const newUsers = telegramConfig.allowedUsers.filter((_, i) => i !== index)
+                                      setTelegramConfig(prev => prev ? { ...prev, allowedUsers: newUsers } : null)
+                                    }
                                   }}
                                   className="text-red-500 hover:text-red-700"
                                 >
@@ -614,10 +694,12 @@ export const BotManagement = () => {
                           <input
                             type="number"
                             value={isEditingTelegram ? telegramConfig?.rateLimits.messagesPerUser || 0 : currentBot.telegram.rateLimits.messagesPerUser}
-                            onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ 
-                              ...prev, 
-                              rateLimits: { ...prev.rateLimits, messagesPerUser: parseInt(e.target.value) }
-                            }))}
+                            onChange={(e) => isEditingTelegram && telegramConfig && setTelegramConfig(prev => 
+                              prev ? { 
+                                ...prev, 
+                                rateLimits: { ...prev.rateLimits, messagesPerUser: parseInt(e.target.value) }
+                              } : null
+                            )}
                             readOnly={!isEditingTelegram}
                             className={`w-full px-3 py-2 border rounded-md ${
                               isEditingTelegram 
@@ -632,10 +714,12 @@ export const BotManagement = () => {
                           <input
                             type="number"
                             value={isEditingTelegram ? telegramConfig?.rateLimits.commandsPerMinute || 0 : currentBot.telegram.rateLimits.commandsPerMinute}
-                            onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ 
-                              ...prev, 
-                              rateLimits: { ...prev.rateLimits, commandsPerMinute: parseInt(e.target.value) }
-                            }))}
+                            onChange={(e) => isEditingTelegram && telegramConfig && setTelegramConfig(prev => 
+                              prev ? { 
+                                ...prev, 
+                                rateLimits: { ...prev.rateLimits, commandsPerMinute: parseInt(e.target.value) }
+                              } : null
+                            )}
                             readOnly={!isEditingTelegram}
                             className={`w-full px-3 py-2 border rounded-md ${
                               isEditingTelegram 
@@ -658,21 +742,23 @@ export const BotManagement = () => {
                             <label className="relative inline-flex items-center cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={isEditingTelegram ? telegramConfig?.features[feature] ?? enabled : enabled}
-                                onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ 
-                                  ...prev, 
-                                  features: { ...prev.features, [feature]: e.target.checked }
-                                }))}
+                                checked={isEditingTelegram ? telegramConfig?.features[feature as keyof typeof telegramConfig.features] ?? enabled : enabled}
+                                onChange={(e) => isEditingTelegram && telegramConfig && setTelegramConfig(prev => 
+                                  prev ? { 
+                                    ...prev, 
+                                    features: { ...prev.features, [feature]: e.target.checked }
+                                  } : null
+                                )}
                                 disabled={!isEditingTelegram}
                                 className="sr-only"
                               />
                               <div className={`w-11 h-6 rounded-full transition-colors ${
-                                (isEditingTelegram ? telegramConfig?.features[feature] ?? enabled : enabled)
+                                (isEditingTelegram ? telegramConfig?.features[feature as keyof typeof telegramConfig.features] ?? enabled : enabled)
                                   ? 'bg-blue-600' 
                                   : 'bg-gray-300'
                               } ${!isEditingTelegram ? 'opacity-60' : ''}`}>
                                 <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
-                                  (isEditingTelegram ? telegramConfig?.features[feature] ?? enabled : enabled)
+                                  (isEditingTelegram ? telegramConfig?.features[feature as keyof typeof telegramConfig.features] ?? enabled : enabled)
                                     ? 'translate-x-5' 
                                     : 'translate-x-0'
                                 } mt-0.5 ml-0.5`} />

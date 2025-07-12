@@ -10,6 +10,7 @@ export interface WebServerConfig {
   host: string
   ideaService: IdeaService
   uiDistPath: string
+  botService?: any // We'll use any to avoid circular dependency
 }
 
 export class WebServer {
@@ -34,6 +35,47 @@ export class WebServer {
   private setupRoutes(): void {
     this.app.get('/api/health', (req: express.Request, res: express.Response) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() })
+    })
+
+    // Bot information endpoints
+    this.app.get('/api/bot/info', (req: express.Request, res: express.Response) => {
+      try {
+        if (!this.config.botService) {
+          return res.status(404).json({ error: 'Bot service not available' })
+        }
+
+        const botInfo = this.config.botService.getBotInfo()
+        if (!botInfo) {
+          return res.status(404).json({ error: 'Bot information not available' })
+        }
+
+        res.json(botInfo)
+      } catch (error) {
+        this.logger.error('Error fetching bot info:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to fetch bot information' })
+      }
+    })
+
+    this.app.get('/api/bot/photo', (req: express.Request, res: express.Response) => {
+      try {
+        if (!this.config.botService) {
+          return res.status(404).json({ error: 'Bot service not available' })
+        }
+
+        const botInfo = this.config.botService.getBotInfo()
+        if (!botInfo || !botInfo.profilePhotoPath) {
+          return res.status(404).json({ error: 'Bot profile photo not available' })
+        }
+
+        if (!existsSync(botInfo.profilePhotoPath)) {
+          return res.status(404).json({ error: 'Profile photo file not found' })
+        }
+
+        res.sendFile(botInfo.profilePhotoPath)
+      } catch (error) {
+        this.logger.error('Error serving bot photo:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to serve bot profile photo' })
+      }
     })
 
     this.app.get('/api/ideas', async (req: express.Request, res: express.Response) => {

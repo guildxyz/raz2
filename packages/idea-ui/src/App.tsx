@@ -11,7 +11,8 @@ import {
   CheckCircle,
   Clock,
   Activity,
-  MessageSquare
+  MessageSquare,
+  Users
 } from 'lucide-react'
 
 import { IdeaList } from './components/IdeaList'
@@ -21,6 +22,8 @@ import { DatabaseManagement } from './components/DatabaseManagement'
 import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { LogsMonitoring } from './components/LogsMonitoring'
 import { ConversationExplorer } from './components/ConversationExplorer'
+import { ContactsExplorer } from './components/ContactsExplorer'
+import { ContactProfile } from './components/ContactProfile'
 import { 
   ideasAtom,
   loadingAtom,
@@ -33,18 +36,25 @@ import {
   createSubtaskAtom,
   deleteSubtaskAtom,
   conversationsAtom,
-  createConversationAtom
+  createConversationAtom,
+  contactsAtom,
+  contactAnalyticsAtom,
+  selectedContactIdAtom,
+  loadContactsAtom,
+  filteredContactsAtom
 } from './store'
 import { mockSystemStatus } from './data'
 import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask, CreateConversationInput } from './types'
 
-type TabType = 'overview' | 'ideas' | 'conversations' | 'bot' | 'database' | 'analytics' | 'logs'
+type TabType = 'overview' | 'ideas' | 'conversations' | 'contacts' | 'bot' | 'database' | 'analytics' | 'logs'
 
 export default function App() {
   const ideas = useAtomValue(ideasAtom)
   const loading = useAtomValue(loadingAtom)
   const error = useAtomValue(errorAtom)
   const conversations = useAtomValue(conversationsAtom)
+  const contacts = useAtomValue(contactsAtom)
+  const filteredContacts = useAtomValue(filteredContactsAtom)
   const createIdea = useSetAtom(createIdeaAtom)
   const updateIdea = useSetAtom(updateIdeaAtom)
   const deleteIdea = useSetAtom(deleteIdeaAtom)
@@ -53,6 +63,7 @@ export default function App() {
   const createSubtask = useSetAtom(createSubtaskAtom)
   const deleteSubtask = useSetAtom(deleteSubtaskAtom)
   const createConversation = useSetAtom(createConversationAtom)
+  const loadContacts = useSetAtom(loadContactsAtom)
   
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showForm, setShowForm] = useState(false)
@@ -62,7 +73,8 @@ export default function App() {
 
   useEffect(() => {
     refreshIdeas()
-  }, [refreshIdeas])
+    loadContacts()
+  }, [refreshIdeas, loadContacts])
 
   const handleCreateIdea = async (data: CreateIdeaInput) => {
     await createIdea({ ...data, generateSubtasks: true })
@@ -166,6 +178,7 @@ export default function App() {
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'ideas', label: 'Strategic Ideas', icon: Lightbulb },
     { id: 'conversations', label: 'Conversations', icon: MessageSquare },
+    { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'bot', label: 'Bot Management', icon: Bot },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -320,7 +333,7 @@ export default function App() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-white rounded-lg shadow p-6 border">
                 <div className="flex items-center justify-between">
                   <div>
@@ -337,6 +350,15 @@ export default function App() {
                     <p className="text-2xl font-bold text-green-600">{conversations.length}</p>
                   </div>
                   <MessageSquare className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Contacts</p>
+                    <p className="text-2xl font-bold text-indigo-600">{contacts.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-indigo-600" />
                 </div>
               </div>
               <div className="bg-white rounded-lg shadow p-6 border">
@@ -468,6 +490,17 @@ export default function App() {
               </div>
             )}
           </>
+        )}
+
+        {activeTab === 'contacts' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <ContactsExplorer />
+            </div>
+            <div>
+              <ContactProfile />
+            </div>
+          </div>
         )}
 
         {activeTab === 'bot' && <BotManagement />}

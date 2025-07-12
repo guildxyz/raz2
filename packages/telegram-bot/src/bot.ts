@@ -7,6 +7,21 @@ import { IdeaService } from './idea-service.js';
 import { WebServer } from './web-server.js';
 import { PersonalityAnalyzer, MessageSample } from './personality-analyzer.js';
 import { resolve, join } from 'node:path';
+import { createWriteStream, existsSync, mkdirSync } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+
+export interface BotInfo {
+  id: number;
+  username: string;
+  firstName: string;
+  isBot: boolean;
+  canJoinGroups: boolean;
+  canReadAllGroupMessages: boolean;
+  supportsInlineQueries: boolean;
+  profilePhotoPath?: string;
+  profilePhotoUrl?: string;
+}
 
 export class TelegramBotService {
   private bot: TelegramBot;
@@ -21,13 +36,18 @@ export class TelegramBotService {
   private botId?: number;
   private botMessageIds = new Set<string>();
   private learnFromUsers = new Set<string>(['zawiasa']);
+  private botInfo?: BotInfo;
+  private profilePhotoDir: string;
 
   constructor(private config: BotConfig) {
+    this.profilePhotoDir = resolve(process.cwd(), './bot-photos');
+    
     this.logger.info('Initializing TelegramBotService', {
       botToken: this.config.telegramToken ? `${this.config.telegramToken.substring(0, 10)}...` : 'missing',
       claudeApiKey: this.config.claudeApiKey ? `${this.config.claudeApiKey.substring(0, 10)}...` : 'missing',
       mcpServerPath: this.config.mcpServerPath,
-      ideaEnabled: !!this.config.ideaStore
+      ideaEnabled: !!this.config.ideaStore,
+      profilePhotoDir: this.profilePhotoDir
     });
 
     this.bot = new TelegramBot(this.config.telegramToken, { 
@@ -61,7 +81,8 @@ export class TelegramBotService {
         port: this.config.webServer.port,
         host: this.config.webServer.host,
         ideaService: this.ideaService,
-        uiDistPath
+        uiDistPath,
+        botService: this
       });
       this.logger.info('Web server enabled', {
         port: this.config.webServer.port,
@@ -1322,6 +1343,128 @@ I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
     return baseCommands + strategicCommands + personalityCommands + examples;
   }
 
+  private async fetchBotInfo(): Promise<void> {
+    try {
+      const me = await this.bot.getMe();
+      
+      this.botInfo = {
+        id: me.id,
+        username: me.username || '',
+        firstName: me.first_name,
+        isBot: me.is_bot,
+        canJoinGroups: (me as any).can_join_groups || false,
+        canReadAllGroupMessages: (me as any).can_read_all_group_messages || false,
+        supportsInlineQueries: (me as any).supports_inline_queries || false
+      };
+
+      this.logger.info('Bot information fetched', {
+        id: this.botInfo.id,
+        username: this.botInfo.username,
+        firstName: this.botInfo.firstName
+      });
+
+      // Try to fetch and download profile photo
+      await this.fetchBotProfilePhoto();
+
+    } catch (error) {
+      this.logger.error('Failed to fetch bot information', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+    }
+  }
+
+  private async fetchBotProfilePhoto(): Promise<void> {
+    if (!this.botInfo) return;
+
+    try {
+      // Ensure profile photo directory exists
+      if (!existsSync(this.profilePhotoDir)) {
+        mkdirSync(this.profilePhotoDir, { recursive: true });
+      }
+
+      // Get bot profile photos
+      const photos = await this.bot.getUserProfilePhotos(this.botInfo.id, { limit: 1 });
+      
+      if (!photos.photos || photos.photos.length === 0) {
+        this.logger.info('No profile photos found for bot');
+        return;
+      }
+
+      const photo = photos.photos[0];
+      if (!photo || photo.length === 0) {
+        this.logger.info('No photo sizes available');
+        return;
+      }
+
+      // Get the largest photo size
+      const largestPhoto = photo.reduce((prev, current) => 
+        (current.width > prev.width) ? current : prev
+      );
+
+      // Get file path from Telegram
+      const file = await this.bot.getFile(largestPhoto.file_id);
+      if (!file.file_path) {
+        this.logger.warn('No file path available for profile photo');
+        return;
+      }
+
+      // Download the photo
+      const photoFileName = `bot_${this.botInfo.id}_profile.jpg`;
+      const localPhotoPath = join(this.profilePhotoDir, photoFileName);
+      
+      await this.downloadTelegramFile(file.file_path, localPhotoPath);
+
+      // Update bot info with photo paths
+      this.botInfo.profilePhotoPath = localPhotoPath;
+      this.botInfo.profilePhotoUrl = `/api/bot/photo`;
+
+      this.logger.info('Bot profile photo downloaded', {
+        localPath: localPhotoPath,
+        originalSize: `${largestPhoto.width}x${largestPhoto.height}`
+      });
+
+    } catch (error) {
+      this.logger.warn('Failed to fetch bot profile photo', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+    }
+  }
+
+  private async downloadTelegramFile(filePath: string, localPath: string): Promise<void> {
+    const url = `https://api.telegram.org/file/bot${this.config.telegramToken}/${filePath}`;
+    
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const writeStream = createWriteStream(localPath);
+      await pipeline(Readable.fromWeb(response.body), writeStream);
+
+      this.logger.debug('File downloaded successfully', {
+        url: filePath,
+        localPath
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to download Telegram file', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        url: filePath,
+        localPath
+      });
+      throw error;
+    }
+  }
+
+  public getBotInfo(): BotInfo | undefined {
+    return this.botInfo;
+  }
+
   public async start(): Promise<void> {
     try {
       this.logger.info('Starting bot initialization...');
@@ -1337,6 +1480,9 @@ I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
         username: this.botUsername,
         mentionDetectionReady: !!this.botUsername
       });
+
+      // Fetch detailed bot information and profile photo
+      await this.fetchBotInfo();
 
       this.logger.info('Initializing Claude client...');
       await this.claude.initialize();

@@ -9,27 +9,30 @@ import type {
 } from '../types'
 
 class ConversationService {
-  private readonly API_BASE_URL = 'http://localhost:3000/api'
+  private readonly API_BASE_URL = import.meta.env.PROD ? 'http://localhost:3000/api' : null
 
   generateId(): string {
     return Math.random().toString(36).substr(2, 9)
   }
 
-  async analyzeConversationWithAI(conversation: Conversation): Promise<AIConversationInsights> {
+  async analyzeConversationWithAI(conversation: Conversation): Promise<any> {
     try {
+      if (!this.API_BASE_URL) {
+        throw new Error('API disabled in development mode')
+      }
+      
       const response = await fetch(`${this.API_BASE_URL}/conversations/${conversation.id}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation })
+        body: JSON.stringify(conversation)
       })
 
       if (!response.ok) {
-        throw new Error('Failed to get AI analysis')
+        throw new Error(`Failed to analyze conversation: ${response.statusText}`)
       }
 
       return await response.json()
     } catch (error) {
-      console.warn('AI analysis not available, using mock insights:', error)
       return this.generateMockAIInsights(conversation)
     }
   }
