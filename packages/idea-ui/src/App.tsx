@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { format } from 'date-fns'
 import { 
   Database, 
   Bot, 
   BarChart3, 
-  Settings, 
   FileText, 
   Lightbulb,
   AlertCircle,
@@ -18,27 +18,35 @@ import { IdeaForm } from './components/IdeaForm'
 import { BotManagement } from './components/BotManagement'
 import { DatabaseManagement } from './components/DatabaseManagement'
 import { AnalyticsDashboard } from './components/AnalyticsDashboard'
-import { ConfigurationManagement } from './components/ConfigurationManagement'
 import { LogsMonitoring } from './components/LogsMonitoring'
-import { useIdeaStore } from './store'
+import { 
+  ideasAtom,
+  loadingAtom,
+  errorAtom,
+  createIdeaAtom,
+  updateIdeaAtom,
+  deleteIdeaAtom,
+  refreshIdeasAtom,
+  updateSubtaskAtom,
+  createSubtaskAtom,
+  deleteSubtaskAtom
+} from './store'
 import { mockSystemStatus } from './data'
-import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask, SubtaskStatus } from './types'
+import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask } from './types'
 
-type TabType = 'overview' | 'ideas' | 'bot' | 'database' | 'analytics' | 'config' | 'logs'
+type TabType = 'overview' | 'ideas' | 'bot' | 'database' | 'analytics' | 'logs'
 
 export default function App() {
-  const { 
-    ideas, 
-    loading, 
-    error, 
-    createIdea, 
-    updateIdea, 
-    deleteIdea, 
-    refreshIdeas,
-    updateSubtask,
-    createSubtask,
-    deleteSubtask
-  } = useIdeaStore()
+  const ideas = useAtomValue(ideasAtom)
+  const loading = useAtomValue(loadingAtom)
+  const error = useAtomValue(errorAtom)
+  const createIdea = useSetAtom(createIdeaAtom)
+  const updateIdea = useSetAtom(updateIdeaAtom)
+  const deleteIdea = useSetAtom(deleteIdeaAtom)
+  const refreshIdeas = useSetAtom(refreshIdeasAtom)
+  const updateSubtask = useSetAtom(updateSubtaskAtom)
+  const createSubtask = useSetAtom(createSubtaskAtom)
+  const deleteSubtask = useSetAtom(deleteSubtaskAtom)
   
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showForm, setShowForm] = useState(false)
@@ -86,16 +94,16 @@ export default function App() {
   }
 
   const handleUpdateSubtask = async (ideaId: string, subtaskId: string, updates: Partial<Subtask>) => {
-    await updateSubtask(ideaId, subtaskId, updates)
+    updateSubtask({ ideaId, subtaskId, updates })
   }
 
   const handleCreateSubtask = async (ideaId: string, subtask: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) => {
-    await createSubtask(ideaId, subtask)
+    createSubtask({ ideaId, subtask })
   }
 
   const handleDeleteSubtask = async (ideaId: string, subtaskId: string) => {
     if (window.confirm('Are you sure you want to delete this subtask?')) {
-      await deleteSubtask(ideaId, subtaskId)
+      deleteSubtask({ ideaId, subtaskId })
     }
   }
 
@@ -115,7 +123,6 @@ export default function App() {
     { id: 'bot', label: 'Bot Management', icon: Bot },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'config', label: 'Configuration', icon: Settings },
     { id: 'logs', label: 'Logs', icon: FileText },
   ] as const
 
@@ -350,7 +357,6 @@ export default function App() {
           {activeTab === 'bot' && <BotManagement />}
           {activeTab === 'database' && <DatabaseManagement />}
           {activeTab === 'analytics' && <AnalyticsDashboard />}
-          {activeTab === 'config' && <ConfigurationManagement />}
           {activeTab === 'logs' && <LogsMonitoring />}
 
           {(showForm || editingIdea) && (

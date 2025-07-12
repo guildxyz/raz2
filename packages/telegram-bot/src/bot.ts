@@ -5,6 +5,7 @@ import { createLogger, sanitizeInput, parseCommand, IDEA_STORE_CONFIG } from '@r
 import { BotConfig, ConversationState, ProcessedMessage } from './types';
 import { IdeaService } from './idea-service';
 import { WebServer } from './web-server';
+import { PersonalityAnalyzer, MessageSample } from './personality-analyzer';
 import { resolve, join } from 'node:path';
 
 export class TelegramBotService {
@@ -13,11 +14,13 @@ export class TelegramBotService {
   private ideaService: IdeaService;
   private toolExecutor?: ToolExecutor;
   private webServer?: WebServer;
+  private personalityAnalyzer: PersonalityAnalyzer;
   private logger = createLogger('TelegramBot');
   private conversations = new Map<number, ConversationState>();
   private botUsername?: string;
   private botId?: number;
   private botMessageIds = new Set<string>();
+  private learnFromUsers = new Set<string>(['zawiasa']);
 
   constructor(private config: BotConfig) {
     this.logger.info('Initializing TelegramBotService', {
@@ -32,6 +35,9 @@ export class TelegramBotService {
     });
     
     this.claude = new ClaudeClient();
+    
+    // Initialize personality analyzer
+    this.personalityAnalyzer = new PersonalityAnalyzer(this.claude);
     
     // Initialize idea service
     if (this.config.ideaStore) {
@@ -154,6 +160,9 @@ export class TelegramBotService {
         }
         return;
       }
+
+      // Track messages for personality learning (with privacy controls)
+      await this.trackMessageForPersonalityLearning(msg, processed);
 
       // Group chat behavior: only respond if mentioned, replied to, or it's a command
       if (processed.isGroupChat && !processed.command?.command) {
@@ -456,6 +465,21 @@ export class TelegramBotService {
         await this.handleSearchCommand(processed);
         break;
       
+      case 'learn':
+        this.logger.info('Executing personality learning command', { chatId });
+        await this.handleLearnCommand(processed);
+        break;
+      
+      case 'personality':
+        this.logger.info('Executing personality view command', { chatId });
+        await this.handlePersonalityCommand(processed);
+        break;
+      
+      case 'forget_personality':
+        this.logger.info('Executing forget personality command', { chatId });
+        await this.handleForgetPersonalityCommand(processed);
+        break;
+      
       default:
         this.logger.warn('Unknown command received', {
           chatId,
@@ -717,6 +741,177 @@ Use /forget <ID> to delete an idea`);
     }
   }
 
+  private async handleLearnCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, command } = processed;
+
+    if (!command?.args || command.args.length === 0) {
+      const trackedUsers = this.personalityAnalyzer.getTrackedUsers();
+      const learningFrom = Array.from(this.learnFromUsers);
+      
+      let message = '🧠 **Personality Learning System**\n\n';
+      message += `**Currently learning from:** ${learningFrom.length > 0 ? learningFrom.map(u => `@${u}`).join(', ') : 'None'}\n\n`;
+      
+      if (trackedUsers.length > 0) {
+        message += '**Analysis Status:**\n';
+        for (const user of trackedUsers) {
+          const sampleCount = this.personalityAnalyzer.getSampleCount(user);
+          const traits = this.personalityAnalyzer.getPersonalityTraits(user);
+          const status = traits ? '✅ Analyzed' : '📊 Collecting';
+          message += `• @${user}: ${sampleCount} samples ${status}\n`;
+        }
+      }
+      
+      message += '\n**Usage:**\n';
+      message += '• `/learn add <username>` - Start learning from user\n';
+      message += '• `/learn remove <username>` - Stop learning from user\n';
+      message += '• `/personality <username>` - View learned traits\n';
+      message += '• `/forget_personality <username>` - Clear data';
+      
+      await this.sendMessage(chatId, message);
+      return;
+    }
+
+    const action = command.args[0].toLowerCase();
+    const username = command.args[1]?.toLowerCase();
+
+    if (!username) {
+      await this.sendMessage(chatId, '❌ Please provide a username\nUsage: `/learn add/remove <username>`');
+      return;
+    }
+
+    if (action === 'add') {
+      this.learnFromUsers.add(username);
+      await this.sendMessage(chatId, `✅ **Learning Started**\n\nNow learning communication patterns from @${username}.\n\n📊 Will analyze messages to adapt personality and response style.\n\n⚠️ **Privacy Note:** Only analyzing public messages for communication style - no content is stored permanently.`);
+      
+      this.logger.info('Started learning from user', {
+        chatId,
+        username,
+        totalLearningFrom: this.learnFromUsers.size
+      });
+    } else if (action === 'remove') {
+      this.learnFromUsers.delete(username);
+      await this.sendMessage(chatId, `✅ **Learning Stopped**\n\nNo longer learning from @${username}.\n\n🗑️ Use \`/forget_personality ${username}\` to clear existing data.`);
+      
+      this.logger.info('Stopped learning from user', {
+        chatId,
+        username,
+        totalLearningFrom: this.learnFromUsers.size
+      });
+    } else {
+      await this.sendMessage(chatId, '❌ Invalid action. Use `add` or `remove`\nUsage: `/learn add/remove <username>`');
+    }
+  }
+
+  private async handlePersonalityCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, command } = processed;
+
+    if (!command?.args || command.args.length === 0) {
+      const trackedUsers = this.personalityAnalyzer.getTrackedUsers();
+      
+      if (trackedUsers.length === 0) {
+        await this.sendMessage(chatId, '🧠 **No Personality Data**\n\nNo users are currently being tracked for personality learning.\n\nUse `/learn add <username>` to start learning from someone.');
+        return;
+      }
+      
+      let message = '🧠 **Tracked Personalities**\n\n';
+      for (const user of trackedUsers) {
+        const sampleCount = this.personalityAnalyzer.getSampleCount(user);
+        const traits = this.personalityAnalyzer.getPersonalityTraits(user);
+        
+        message += `**@${user}**\n`;
+        message += `📊 ${sampleCount} messages analyzed\n`;
+        if (traits) {
+          message += `🎭 ${traits.communicationStyle}\n`;
+          message += `🧠 ${traits.technicalDepth}\n`;
+          message += `💬 ${traits.casualness}\n`;
+          message += `📅 Updated: ${traits.lastUpdated.toLocaleDateString()}\n`;
+        } else {
+          message += `⏳ Still collecting data...\n`;
+        }
+        message += '\n';
+      }
+      
+      message += 'Use `/personality <username>` for detailed analysis.';
+      await this.sendMessage(chatId, message);
+      return;
+    }
+
+    const username = command.args[0].toLowerCase();
+    const traits = this.personalityAnalyzer.getPersonalityTraits(username);
+    
+    if (!traits) {
+      const sampleCount = this.personalityAnalyzer.getSampleCount(username);
+      if (sampleCount > 0) {
+        await this.sendMessage(chatId, `📊 **@${username} Analysis in Progress**\n\n${sampleCount} messages collected.\nNeed ${Math.max(0, 10 - sampleCount)} more messages for initial analysis.`);
+      } else {
+        await this.sendMessage(chatId, `❌ **No Data for @${username}**\n\nUser not found in personality learning system.\n\nUse \`/learn add ${username}\` to start tracking.`);
+      }
+      return;
+    }
+
+    const vocabularyText = traits.vocabularyPreferences.length > 0 
+      ? `\n**Vocabulary:** ${traits.vocabularyPreferences.join(', ')}`
+      : '';
+    
+    const phrasesText = traits.commonPhrases.length > 0
+      ? `\n**Phrases:** ${traits.commonPhrases.join(', ')}`
+      : '';
+    
+    const topicsText = traits.topicPreferences.length > 0
+      ? `\n**Topics:** ${traits.topicPreferences.join(', ')}`
+      : '';
+
+    const message = `🧠 **@${username} Personality Analysis**
+
+📊 **${traits.sampleCount} messages analyzed**
+📅 **Last updated:** ${traits.lastUpdated.toLocaleDateString()}
+
+🎭 **Communication Style:**
+${traits.communicationStyle}
+
+🧠 **Technical Depth:**
+${traits.technicalDepth}
+
+💬 **Casualness:**
+${traits.casualness}
+
+😄 **Humor:**
+${traits.humor}
+
+📝 **Response Patterns:**
+${traits.responsePatterns}${vocabularyText}${phrasesText}${topicsText}
+
+🤖 **Bot Adaptation:** Currently adapting responses to match this style when chatting with @${username}.`;
+
+    await this.sendMessage(chatId, message);
+  }
+
+  private async handleForgetPersonalityCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, command } = processed;
+
+    if (!command?.args || command.args.length === 0) {
+      await this.sendMessage(chatId, '❌ Please provide a username\nUsage: `/forget_personality <username>`');
+      return;
+    }
+
+    const username = command.args[0].toLowerCase();
+    const hadData = this.personalityAnalyzer.getSampleCount(username) > 0;
+    
+    this.personalityAnalyzer.clearPersonalityData(username);
+    this.learnFromUsers.delete(username);
+    
+    if (hadData) {
+      await this.sendMessage(chatId, `✅ **Personality Data Cleared**\n\nAll personality data for @${username} has been permanently deleted.\n\n🔄 The bot will no longer adapt to their communication style.\n\n💡 Use \`/learn add ${username}\` to start fresh learning.`);
+      
+      this.logger.info('Cleared personality data', {
+        chatId,
+        username
+      });
+    } else {
+      await this.sendMessage(chatId, `ℹ️ **No Data Found**\n\nNo personality data exists for @${username}.`);
+    }
+  }
+
   private async handleChatMessage(
     processed: ProcessedMessage,
     conversation: ConversationState
@@ -785,6 +980,20 @@ Use /forget <ID> to delete an idea`);
         toolsEnabled: isStrategicMessage
       });
 
+      // Get personality adaptation if available
+      const senderUsername = processed.originalMessage.from?.username?.toLowerCase()
+      const personalityPrompt = senderUsername && this.learnFromUsers.has(senderUsername) 
+        ? this.personalityAnalyzer.generatePersonalityPrompt(senderUsername) || undefined
+        : undefined
+
+      if (personalityPrompt) {
+        this.logger.info('Using learned personality adaptation', {
+          chatId,
+          username: senderUsername,
+          sampleCount: this.personalityAnalyzer.getSampleCount(senderUsername!)
+        })
+      }
+
       // Add timeout protection for Claude API calls
       const response = await Promise.race([
         this.claude.sendMessage(
@@ -793,7 +1002,8 @@ Use /forget <ID> to delete an idea`);
           conversation.userId,
           chatId,
           isStrategicMessage, // Only enable tools for strategic messages
-          false // isCommand: false for casual conversation
+          false, // isCommand: false for casual conversation
+          personalityPrompt // Apply learned personality if available
         ),
         new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Claude API timeout')), 30000)
@@ -890,6 +1100,39 @@ Use /forget <ID> to delete an idea`);
       }
       
       await this.sendMessage(chatId, errorMessage);
+    }
+  }
+
+  private async trackMessageForPersonalityLearning(msg: TelegramBot.Message, processed: ProcessedMessage): Promise<void> {
+    if (!msg.from?.username || !processed.isValid || processed.command?.command) return
+    
+    const username = msg.from.username.toLowerCase()
+    if (!this.learnFromUsers.has(username)) return
+
+    try {
+      const sample: MessageSample = {
+        text: processed.text,
+        timestamp: new Date(msg.date * 1000),
+        chatType: processed.isGroupChat ? (msg.chat.type as 'group' | 'supergroup') : 'private',
+        messageLength: processed.text.length,
+        hasEmojis: /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(processed.text),
+        hasLinks: /https?:\/\//.test(processed.text),
+        replyToBot: processed.isReplyToBotMessage
+      }
+
+      await this.personalityAnalyzer.addMessageSample(username, sample)
+      
+      this.logger.debug('Tracked message for personality learning', {
+        username,
+        messageLength: sample.text.length,
+        chatType: sample.chatType,
+        sampleCount: this.personalityAnalyzer.getSampleCount(username)
+      })
+    } catch (error) {
+      this.logger.warn('Error tracking message for personality learning', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        username
+      })
     }
   }
 
@@ -1054,6 +1297,17 @@ This keeps conversations focused and prevents spam.`;
 • Intelligently capture strategic insights during conversations
 • Search and retrieve your strategic knowledge base` : '';
 
+    const personalityCommands = `
+
+🎭 Personality Learning:
+/learn - View learning system status  
+/learn add <username> - Start learning from user's style
+/learn remove <username> - Stop learning from user
+/personality <username> - View learned communication traits
+/forget_personality <username> - Clear personality data
+
+🤖 The bot adapts its casual responses to match learned communication patterns while maintaining its core crypto founder personality.`;
+
     const examples = `
 
 Strategic Examples:
@@ -1065,7 +1319,7 @@ Strategic Examples:
 
 I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
 
-    return baseCommands + strategicCommands + examples;
+    return baseCommands + strategicCommands + personalityCommands + examples;
   }
 
   public async start(): Promise<void> {

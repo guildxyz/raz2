@@ -3,7 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import { IdeaStore } from '@raz2/idea-store'
-import { createLogger } from '@raz2/shared'
+import { createLogger, formatError } from '@raz2/shared'
 import type { IdeaStoreConfig } from '@raz2/shared'
 import { IdeaService } from './services/ideaService'
 import { createIdeasRouter } from './routes/ideas'
@@ -19,7 +19,6 @@ export class CoreServer {
 
   constructor(
     ideaStoreConfig: IdeaStoreConfig,
-    claudeApiKey: string,
     serverConfig: Partial<ServerConfig> = {}
   ) {
     this.config = {
@@ -32,7 +31,7 @@ export class CoreServer {
 
     this.app = express()
     this.ideaStore = new IdeaStore(ideaStoreConfig)
-    this.ideaService = new IdeaService(this.ideaStore, claudeApiKey)
+    this.ideaService = new IdeaService(this.ideaStore)
 
     this.setupMiddleware()
     this.setupRoutes()
@@ -144,14 +143,16 @@ export class CoreServer {
         logger.info(`Received ${signal}, starting graceful shutdown`)
         
         server.close(async () => {
-          try {
-            await this.ideaStore.disconnect()
-            logger.info('Graceful shutdown completed')
-            process.exit(0)
-          } catch (error) {
-            logger.error('Error during graceful shutdown', { error })
-            process.exit(1)
-          }
+                     try {
+             await this.ideaStore.disconnect()
+             logger.info('Graceful shutdown completed')
+             process.exit(0)
+           } catch (error) {
+             logger.error('Error during graceful shutdown', { 
+               error: error instanceof Error ? error : new Error(formatError(error))
+             })
+             process.exit(1)
+           }
         })
 
         setTimeout(() => {
@@ -163,10 +164,12 @@ export class CoreServer {
       process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
       process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
-    } catch (error) {
-      logger.error('Failed to start server', { error })
-      throw error
-    }
+         } catch (error) {
+       logger.error('Failed to start server', { 
+         error: error instanceof Error ? error : new Error(formatError(error))
+       })
+       throw error
+     }
   }
 
   getApp(): express.Application {

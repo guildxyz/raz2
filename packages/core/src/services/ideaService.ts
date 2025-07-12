@@ -2,16 +2,13 @@ import { IdeaStore } from '@raz2/idea-store'
 import { createLogger } from '@raz2/shared'
 import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaFilter } from '@raz2/shared'
 import type { ExtendedIdea, Subtask, KanbanColumn, CreateIdeaRequest, UpdateIdeaRequest } from '../types'
-import { AITaskBreakdownService } from './aiTaskBreakdown'
 
 export class IdeaService {
   private store: IdeaStore
-  private aiService: AITaskBreakdownService
   private logger = createLogger('idea-service')
 
-  constructor(store: IdeaStore, claudeApiKey: string) {
+  constructor(store: IdeaStore) {
     this.store = store
-    this.aiService = new AITaskBreakdownService(claudeApiKey)
   }
 
   async createIdea(request: CreateIdeaRequest): Promise<ExtendedIdea> {
@@ -33,26 +30,32 @@ export class IdeaService {
       let aiBreakdown = undefined
 
       if (request.generateSubtasks !== false) {
-        try {
-          aiBreakdown = await this.aiService.breakdownIdea({
-            title: request.title,
-            content: request.content,
-            category: request.category || 'strategy',
-            priority: request.priority || 'medium'
-          })
-
-          subtasks = aiBreakdown.subtasks.map(subtask => ({
-            ...subtask,
+        subtasks = [
+          {
             id: this.generateId(),
+            title: 'Research and Planning',
+            description: `Research requirements and create plan for: ${request.title}`,
+            status: 'todo' as const,
+            priority: 'high' as const,
+            estimatedHours: 2,
+            tags: ['research', 'planning'],
+            dependencies: [],
             createdAt: new Date(),
             updatedAt: new Date()
-          }))
-        } catch (error) {
-          this.logger.warn('Failed to generate subtasks, continuing without them', {
-            error: error instanceof Error ? error : new Error(String(error)),
-            ideaId: idea.id
-          })
-        }
+          },
+          {
+            id: this.generateId(),
+            title: 'Implementation',
+            description: `Implement the main components for: ${request.title}`,
+            status: 'todo' as const,
+            priority: 'high' as const,
+            estimatedHours: 4,
+            tags: ['development'],
+            dependencies: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        ]
       }
 
       const extendedIdea: ExtendedIdea = {
@@ -97,26 +100,32 @@ export class IdeaService {
       let aiBreakdown = undefined
 
       if (request.regenerateSubtasks && request.title && request.content) {
-        try {
-          aiBreakdown = await this.aiService.breakdownIdea({
-            title: request.title,
-            content: request.content,
-            category: request.category || idea.category,
-            priority: request.priority || idea.priority
-          })
-
-          subtasks = aiBreakdown.subtasks.map(subtask => ({
-            ...subtask,
+        subtasks = [
+          {
             id: this.generateId(),
+            title: 'Research and Planning',
+            description: `Research requirements and create plan for: ${request.title}`,
+            status: 'todo' as const,
+            priority: 'high' as const,
+            estimatedHours: 2,
+            tags: ['research', 'planning'],
+            dependencies: [],
             createdAt: new Date(),
             updatedAt: new Date()
-          }))
-        } catch (error) {
-          this.logger.warn('Failed to regenerate subtasks', {
-            error: error instanceof Error ? error : new Error(String(error)),
-            ideaId: idea.id
-          })
-        }
+          },
+          {
+            id: this.generateId(),
+            title: 'Implementation',
+            description: `Implement the main components for: ${request.title}`,
+            status: 'todo' as const,
+            priority: 'high' as const,
+            estimatedHours: 4,
+            tags: ['development'],
+            dependencies: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        ]
       }
 
       const extendedIdea: ExtendedIdea = {

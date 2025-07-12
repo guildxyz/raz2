@@ -70,6 +70,22 @@ export interface BotInstance {
       messagesPerDay: number
     }
   }
+  telegram: {
+    botToken: string
+    username: string
+    allowedUsers: string[]
+    rateLimits: {
+      messagesPerUser: number
+      commandsPerMinute: number
+    }
+    features: {
+      privateMessages: boolean
+      groupMessages: boolean
+      inlineQueries: boolean
+      webhooks: boolean
+    }
+    lastUpdated: Date
+  }
   deployment: {
     environment: 'production' | 'staging' | 'development'
     region: string
@@ -179,6 +195,22 @@ export const mockBots: BotInstance[] = [
         messagesPerDay: 1000
       }
     },
+    telegram: {
+      botToken: '7842156789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw',
+      username: '@strategic_ai_bot',
+      allowedUsers: ['razvan', 'guild_team'],
+      rateLimits: {
+        messagesPerUser: 100,
+        commandsPerMinute: 10
+      },
+      features: {
+        privateMessages: true,
+        groupMessages: false,
+        inlineQueries: true,
+        webhooks: true
+      },
+      lastUpdated: new Date('2024-01-15')
+    },
     deployment: {
       environment: 'production',
       region: 'us-west-2',
@@ -217,6 +249,22 @@ export const mockBots: BotInstance[] = [
         messagesPerDay: 800
       }
     },
+    telegram: {
+      botToken: '7842156790:BBHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw',
+      username: '@product_helper_bot',
+      allowedUsers: ['razvan', 'product_team', 'developers'],
+      rateLimits: {
+        messagesPerUser: 80,
+        commandsPerMinute: 8
+      },
+      features: {
+        privateMessages: true,
+        groupMessages: true,
+        inlineQueries: false,
+        webhooks: true
+      },
+      lastUpdated: new Date('2024-01-20')
+    },
     deployment: {
       environment: 'production',
       region: 'us-west-2',
@@ -254,6 +302,22 @@ export const mockBots: BotInstance[] = [
         messagesPerMinute: 20,
         messagesPerDay: 600
       }
+    },
+    telegram: {
+      botToken: '7842156791:CCHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw',
+      username: '@market_analyst_bot',
+      allowedUsers: ['razvan', 'market_team'],
+      rateLimits: {
+        messagesPerUser: 60,
+        commandsPerMinute: 6
+      },
+      features: {
+        privateMessages: true,
+        groupMessages: false,
+        inlineQueries: true,
+        webhooks: false
+      },
+      lastUpdated: new Date('2024-02-05')
     },
     deployment: {
       environment: 'staging',

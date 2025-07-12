@@ -20,7 +20,14 @@ import {
   Brain,
   Star,
   Crown,
-  BarChart3
+  BarChart3,
+  Eye,
+  EyeOff,
+  Save,
+  X,
+  Edit3,
+  Shield,
+  Key
 } from 'lucide-react'
 import { 
   mockConversations, 
@@ -33,11 +40,14 @@ import {
 
 export const BotManagement = () => {
   const [selectedBot, setSelectedBot] = useState<string>('strategic-ai')
-  const [activeManagementTab, setActiveManagementTab] = useState<'conversations' | 'contacts' | 'controls' | 'analytics'>('conversations')
+  const [activeManagementTab, setActiveManagementTab] = useState<'conversations' | 'contacts' | 'controls' | 'telegram' | 'analytics'>('conversations')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContact, setSelectedContact] = useState<string | null>(null)
   const [messageToSend, setMessageToSend] = useState('')
   const [selectedUser, setSelectedUser] = useState('')
+  const [showBotToken, setShowBotToken] = useState(false)
+  const [isEditingTelegram, setIsEditingTelegram] = useState(false)
+  const [telegramConfig, setTelegramConfig] = useState<BotInstance['telegram'] | null>(null)
 
   const [conversations] = useState<Conversation[]>(mockConversations)
   const [contacts] = useState<Contact[]>(mockContacts)
@@ -124,6 +134,24 @@ export const BotManagement = () => {
     console.log('Sending message:', messageToSend, 'to user:', selectedUser)
     setMessageToSend('')
     setSelectedUser('')
+  }
+
+  const startEditingTelegram = () => {
+    if (currentBot?.telegram) {
+      setTelegramConfig({ ...currentBot.telegram })
+      setIsEditingTelegram(true)
+    }
+  }
+
+  const cancelEditingTelegram = () => {
+    setTelegramConfig(null)
+    setIsEditingTelegram(false)
+  }
+
+  const saveTelegramConfig = () => {
+    console.log('Saving telegram config:', telegramConfig)
+    setIsEditingTelegram(false)
+    setTelegramConfig(null)
   }
 
   const renderBotCard = (bot: BotInstance) => {
@@ -268,6 +296,19 @@ export const BotManagement = () => {
                 <div className="flex items-center gap-2">
                   <Settings size={16} />
                   Controls
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveManagementTab('telegram')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  activeManagementTab === 'telegram'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Send size={16} />
+                  Telegram
                 </div>
               </button>
               <button
@@ -443,6 +484,215 @@ export const BotManagement = () => {
                       <Send size={16} />
                       Send Message
                     </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeManagementTab === 'telegram' && currentBot && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-semibold text-gray-900">Telegram Configuration</h4>
+                  {!isEditingTelegram ? (
+                    <button
+                      onClick={startEditingTelegram}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Edit3 size={16} />
+                      Edit Configuration
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={saveTelegramConfig}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <Save size={16} />
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={cancelEditingTelegram}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        <X size={16} />
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Key className="text-gray-600" size={18} />
+                        Authentication
+                      </h5>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Bot Token</label>
+                          <div className="relative">
+                            <input
+                              type={showBotToken ? 'text' : 'password'}
+                              value={isEditingTelegram ? telegramConfig?.botToken || '' : currentBot.telegram.botToken}
+                              onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ ...prev, botToken: e.target.value }))}
+                              readOnly={!isEditingTelegram}
+                              className={`w-full px-3 py-2 border rounded-md pr-10 ${
+                                isEditingTelegram 
+                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' 
+                                  : 'border-gray-200 bg-gray-50'
+                              }`}
+                            />
+                            <button
+                              onClick={() => setShowBotToken(!showBotToken)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              {showBotToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Telegram Bot API token from @BotFather</p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Bot Username</label>
+                          <input
+                            type="text"
+                            value={isEditingTelegram ? telegramConfig?.username || '' : currentBot.telegram.username}
+                            onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ ...prev, username: e.target.value }))}
+                            readOnly={!isEditingTelegram}
+                            className={`w-full px-3 py-2 border rounded-md ${
+                              isEditingTelegram 
+                                ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' 
+                                : 'border-gray-200 bg-gray-50'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Shield className="text-gray-600" size={18} />
+                        Access Control
+                      </h5>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Allowed Users</label>
+                        <div className="space-y-2">
+                          {(isEditingTelegram ? telegramConfig?.allowedUsers || [] : currentBot.telegram.allowedUsers).map((user, index) => (
+                            <div key={index} className="flex items-center justify-between bg-white rounded border px-3 py-2">
+                              <span className="text-sm text-gray-700">@{user}</span>
+                              {isEditingTelegram && (
+                                <button
+                                  onClick={() => {
+                                    const newUsers = telegramConfig.allowedUsers.filter((_, i) => i !== index)
+                                    setTelegramConfig(prev => ({ ...prev, allowedUsers: newUsers }))
+                                  }}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {isEditingTelegram && (
+                            <button className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
+                              <Plus size={16} className="inline mr-1" />
+                              Add User
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="text-md font-semibold text-gray-900 mb-4">Rate Limits</h5>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Messages Per User</label>
+                          <input
+                            type="number"
+                            value={isEditingTelegram ? telegramConfig?.rateLimits.messagesPerUser || 0 : currentBot.telegram.rateLimits.messagesPerUser}
+                            onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ 
+                              ...prev, 
+                              rateLimits: { ...prev.rateLimits, messagesPerUser: parseInt(e.target.value) }
+                            }))}
+                            readOnly={!isEditingTelegram}
+                            className={`w-full px-3 py-2 border rounded-md ${
+                              isEditingTelegram 
+                                ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' 
+                                : 'border-gray-200 bg-gray-50'
+                            }`}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Commands Per Minute</label>
+                          <input
+                            type="number"
+                            value={isEditingTelegram ? telegramConfig?.rateLimits.commandsPerMinute || 0 : currentBot.telegram.rateLimits.commandsPerMinute}
+                            onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ 
+                              ...prev, 
+                              rateLimits: { ...prev.rateLimits, commandsPerMinute: parseInt(e.target.value) }
+                            }))}
+                            readOnly={!isEditingTelegram}
+                            className={`w-full px-3 py-2 border rounded-md ${
+                              isEditingTelegram 
+                                ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' 
+                                : 'border-gray-200 bg-gray-50'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="text-md font-semibold text-gray-900 mb-4">Features</h5>
+                      <div className="space-y-3">
+                        {Object.entries(currentBot.telegram.features).map(([feature, enabled]) => (
+                          <div key={feature} className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700 capitalize">
+                              {feature.replace(/([A-Z])/g, ' $1').trim()}
+                            </span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isEditingTelegram ? telegramConfig?.features[feature] ?? enabled : enabled}
+                                onChange={(e) => isEditingTelegram && setTelegramConfig(prev => ({ 
+                                  ...prev, 
+                                  features: { ...prev.features, [feature]: e.target.checked }
+                                }))}
+                                disabled={!isEditingTelegram}
+                                className="sr-only"
+                              />
+                              <div className={`w-11 h-6 rounded-full transition-colors ${
+                                (isEditingTelegram ? telegramConfig?.features[feature] ?? enabled : enabled)
+                                  ? 'bg-blue-600' 
+                                  : 'bg-gray-300'
+                              } ${!isEditingTelegram ? 'opacity-60' : ''}`}>
+                                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                                  (isEditingTelegram ? telegramConfig?.features[feature] ?? enabled : enabled)
+                                    ? 'translate-x-5' 
+                                    : 'translate-x-0'
+                                } mt-0.5 ml-0.5`} />
+                              </div>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <h5 className="text-md font-semibold text-blue-900 mb-2">Configuration Status</h5>
+                      <div className="text-sm text-blue-700">
+                        <p>Last updated: {currentBot.telegram.lastUpdated.toLocaleDateString()}</p>
+                        <p className="flex items-center gap-1 mt-1">
+                          <CheckCircle size={14} />
+                          Configuration is valid and active
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

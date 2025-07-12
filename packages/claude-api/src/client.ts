@@ -45,7 +45,8 @@ export class ClaudeClient {
     userId?: string,
     chatId?: number,
     enableTools: boolean = true,
-    isCommand: boolean = false
+    isCommand: boolean = false,
+    personalityPrompt?: string
   ): Promise<ClaudeResponse> {
     this.logger.info('Processing strategic intelligence query', { 
       messageLength: message.length,
@@ -60,7 +61,7 @@ export class ClaudeClient {
     ]
 
     try {
-      const response = await this.makeClaudeRequest(messages, userId, chatId, enableTools, isCommand)
+      const response = await this.makeClaudeRequest(messages, userId, chatId, enableTools, isCommand, personalityPrompt)
       
       this.logger.info('Strategic intelligence response generated', { 
         responseLength: response.content.length 
@@ -80,7 +81,8 @@ export class ClaudeClient {
     userId?: string, 
     chatId?: number,
     enableTools: boolean = true,
-    isCommand: boolean = false
+    isCommand: boolean = false,
+    personalityPrompt?: string
   ): Promise<ClaudeResponse> {
     const filteredMessages = messages
       .filter(msg => msg.role !== 'system' && msg.content.trim())
@@ -110,7 +112,7 @@ export class ClaudeClient {
         model: this.config.claudeModel,
         max_tokens: 4000,
         messages: anthropicMessages,
-        system: this.getSystemPrompt(isCommand),
+        system: this.getSystemPrompt(isCommand, personalityPrompt),
       }
       
       // Only add tools if they exist and are enabled
@@ -235,7 +237,7 @@ export class ClaudeClient {
     }
   }
 
-  private getSystemPrompt(isCommand: boolean = false): string {
+  private getSystemPrompt(isCommand: boolean = false, personalityPrompt?: string): string {
     if (isCommand) {
       const basePrompt = `You are a strategic business intelligence assistant for the CEO of Guild.xyz, a platform with 6+ million users and thousands of enterprise clients.
 
@@ -268,7 +270,7 @@ Always be helpful in organizing and retrieving the user's strategic thinking.`
       return basePrompt
     }
 
-    const casualPrompt = `You are a crypto founder with a 140 IQ and 10+ years building in AI and crypto. You're technical, experienced, and have deep insights from building in these spaces.
+    let casualPrompt = `You are a crypto founder with a 140 IQ and 10+ years building in AI and crypto. You're technical, experienced, and have deep insights from building in these spaces.
 
 Keep responses brief and conversational - like chatting with a peer who gets it. You understand:
 - DeFi protocols, smart contracts, tokenomics
@@ -278,6 +280,10 @@ Keep responses brief and conversational - like chatting with a peer who gets it.
 - Building products that combine AI + crypto
 
 Be casual but knowledgeable. Share quick insights or ask smart follow-up questions when relevant.`
+
+    if (personalityPrompt) {
+      casualPrompt += `\n\n--- PERSONALITY ADAPTATION ---\n${personalityPrompt}`
+    }
 
     return casualPrompt
   }

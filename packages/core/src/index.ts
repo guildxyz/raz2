@@ -1,11 +1,11 @@
-import { createLogger, validateEnvironment } from '@raz2/shared'
+import { createLogger, loadEnvironmentConfig, formatError } from '@raz2/shared'
 import { CoreServer } from './server'
 
 const logger = createLogger('core-main')
 
 async function main() {
   try {
-    const env = validateEnvironment()
+    const env = loadEnvironmentConfig()
     
     if (!env.databaseUrl) {
       throw new Error('DATABASE_URL environment variable is required')
@@ -38,14 +38,15 @@ async function main() {
 
     const server = new CoreServer(
       ideaStoreConfig,
-      env.anthropicApiKey,
       serverConfig
     )
 
     await server.start()
 
   } catch (error) {
-    logger.error('Failed to start core server', { error })
+    logger.error('Failed to start core server', { 
+      error: error instanceof Error ? error : new Error(formatError(error))
+    })
     process.exit(1)
   }
 }
@@ -56,5 +57,4 @@ if (require.main === module) {
 
 export { CoreServer }
 export * from './types'
-export * from './services/ideaService'
-export * from './services/aiTaskBreakdown' 
+export * from './services/ideaService' 
