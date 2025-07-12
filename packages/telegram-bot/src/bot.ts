@@ -68,6 +68,25 @@ export class TelegramBotService {
 
   private setupHandlers(): void {
     this.bot.on('message', async (msg) => {
+      // Determine actual message type for better logging
+      let messageType: string;
+      let hasText = false;
+      
+      if (msg.photo) messageType = 'photo';
+      else if (msg.document) messageType = 'document';
+      else if (msg.sticker) messageType = 'sticker';
+      else if (msg.voice) messageType = 'voice';
+      else if (msg.video) messageType = 'video';
+      else if (msg.audio) messageType = 'audio';
+      else if (msg.location) messageType = 'location';
+      else if (msg.contact) messageType = 'contact';
+      else if (msg.text && msg.text.length > 0) {
+        messageType = 'text';
+        hasText = true;
+      } else {
+        messageType = 'unknown';
+      }
+      
       this.logger.info('Raw message received', {
         chatId: msg.chat.id,
         messageId: msg.message_id,
@@ -77,8 +96,8 @@ export class TelegramBotService {
           firstName: msg.from?.first_name
         },
         text: msg.text,
-        hasText: !!msg.text,
-        messageType: msg.photo ? 'photo' : msg.document ? 'document' : msg.sticker ? 'sticker' : 'text'
+        hasText,
+        messageType
       });
       
       await this.handleMessage(msg);
@@ -109,12 +128,16 @@ export class TelegramBotService {
         command: processed.command?.command,
         textLength: processed.text.length,
         originalText: msg.text,
-        sanitizedText: processed.text
+        sanitizedText: processed.text,
+        messageType: processed.messageType
       });
 
       if (!processed.isValid) {
         this.logger.warn('Invalid message format detected', { processed });
-        await this.sendMessage(processed.chatId, 'Invalid message format');
+        // Don't send error message for non-text messages, just ignore them
+        if (processed.messageType === 'text' && processed.text.length === 0) {
+          await this.sendMessage(processed.chatId, 'Please send a text message');
+        }
         return;
       }
 
@@ -155,20 +178,39 @@ export class TelegramBotService {
     const text = msg.text || '';
     const sanitizedText = sanitizeInput(text);
     
+    // Determine actual message type
+    let messageType: string;
+    if (msg.photo) messageType = 'photo';
+    else if (msg.document) messageType = 'document';
+    else if (msg.sticker) messageType = 'sticker';
+    else if (msg.voice) messageType = 'voice';
+    else if (msg.video) messageType = 'video';
+    else if (msg.audio) messageType = 'audio';
+    else if (msg.location) messageType = 'location';
+    else if (msg.contact) messageType = 'contact';
+    else if (text.length > 0) messageType = 'text';
+    else messageType = 'unknown';
+    
     const command = parseCommand(sanitizedText);
+    
+    // Message is valid if it has text content or is a supported non-text type
+    const isValid = messageType === 'text' && sanitizedText.length > 0;
     
     this.logger.debug('Processing message', {
       originalText: text,
       sanitizedText,
       hasCommand: !!command.command,
-      command: command.command
+      command: command.command,
+      messageType,
+      isValid
     });
     
     return {
       chatId,
       text: sanitizedText,
       command,
-      isValid: sanitizedText.length > 0,
+      isValid,
+      messageType,
       userId: msg.from?.id,
       userName: msg.from?.username || msg.from?.first_name || 'User',
     };
@@ -537,19 +579,27 @@ Use /forget <ID> to delete an idea`);
           query: text.substring(0, 50)
         });
 
-        const relevantIdeas = await this.ideaService.searchRelevantIdeas(
-          text,
-          conversation.userId,
-          3
-        );
+        try {
+          const relevantIdeas = await Promise.race([
+            this.ideaService.searchRelevantIdeas(text, conversation.userId, 3),
+            new Promise<any[]>((_, reject) => 
+              setTimeout(() => reject(new Error('Strategic search timeout')), 5000)
+            )
+          ]);
 
-        if (relevantIdeas.length > 0) {
-          strategicContext = this.ideaService.buildStrategicContext(relevantIdeas, 500);
-          this.logger.info('Found relevant strategic insights for context', {
-            chatId,
-            userId: conversation.userId || 'unknown',
-            ideaCount: relevantIdeas.length,
-            contextLength: strategicContext.length
+          if (relevantIdeas.length > 0) {
+            strategicContext = this.ideaService.buildStrategicContext(relevantIdeas, 500);
+            this.logger.info('Found relevant strategic insights for context', {
+              chatId,
+              userId: conversation.userId || 'unknown',
+              ideaCount: relevantIdeas.length,
+              contextLength: strategicContext.length
+            });
+          }
+        } catch (error) {
+          this.logger.warn('Error searching for strategic context, continuing without it', {
+            error: error instanceof Error ? error : new Error(String(error)),
+            chatId
           });
         }
       }
@@ -566,12 +616,18 @@ Use /forget <ID> to delete an idea`);
         historyLength: conversation.messages.length
       });
 
-      const response = await this.claude.sendMessage(
-        messageWithContext, 
-        conversation.messages,
-        conversation.userId,
-        chatId
-      );
+      // Add timeout protection for Claude API calls
+      const response = await Promise.race([
+        this.claude.sendMessage(
+          messageWithContext, 
+          conversation.messages,
+          conversation.userId,
+          chatId
+        ),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Claude API timeout')), 30000)
+        )
+      ]);
 
       this.logger.info('Received response from Claude', {
         chatId,
@@ -584,25 +640,39 @@ Use /forget <ID> to delete an idea`);
         { role: 'assistant', content: response.content }
       );
 
+      // Auto-capture strategic insights with timeout protection
       if (this.ideaService.isIdeaEnabled() && conversation.userId && text.length > 20) {
         const isStrategic = /\b(strategy|strategic|business|market|product|sales|revenue|growth|competition|partnership|client|customer|guild|platform|feature|roadmap|planning|decision|analysis)\b/i.test(text);
         
         if (isStrategic) {
-          await this.ideaService.captureStrategicIdea(
-            'Conversation Insight',
-          text,
-            conversation.userId,
-            chatId,
-            'strategy',
-            'medium',
-            ['conversation', 'auto-captured']
-          );
-          
-          this.logger.info('Auto-captured strategic insight from conversation', {
-            chatId,
-            userId: conversation.userId,
-            contentLength: text.length
-          });
+          try {
+            await Promise.race([
+              this.ideaService.captureStrategicIdea(
+                'Conversation Insight',
+                text,
+                conversation.userId,
+                chatId,
+                'strategy',
+                'medium',
+                ['conversation', 'auto-captured']
+              ),
+              new Promise<void>((_, reject) => 
+                setTimeout(() => reject(new Error('Idea capture timeout')), 5000)
+              )
+            ]);
+            
+            this.logger.info('Auto-captured strategic insight from conversation', {
+              chatId,
+              userId: conversation.userId,
+              contentLength: text.length
+            });
+          } catch (error) {
+            this.logger.warn('Error auto-capturing strategic insight, continuing', {
+              error: error instanceof Error ? error : new Error(String(error)),
+              chatId,
+              userId: conversation.userId
+            });
+          }
         }
       }
 
@@ -618,7 +688,18 @@ Use /forget <ID> to delete an idea`);
         chatId,
         messageText: text.substring(0, 100)
       });
-      await this.sendMessage(chatId, 'Sorry, an error occurred processing the response');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Sorry, an error occurred processing your message';
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          errorMessage = 'Sorry, the request took too long to process. Please try again with a shorter message.';
+        } else if (error.message.includes('Claude API')) {
+          errorMessage = 'Sorry, there was an issue with the AI service. Please try again in a moment.';
+        }
+      }
+      
+      await this.sendMessage(chatId, errorMessage);
     }
   }
 

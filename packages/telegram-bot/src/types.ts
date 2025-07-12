@@ -27,6 +27,7 @@ export interface ProcessedMessage {
   text: string;
   command?: Command;
   isValid: boolean;
+  messageType: string;
   userId?: number;
   userName: string;
 }
