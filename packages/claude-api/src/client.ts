@@ -44,7 +44,8 @@ export class ClaudeClient {
     conversationHistory: ClaudeMessage[] = [],
     userId?: string,
     chatId?: number,
-    enableTools: boolean = true
+    enableTools: boolean = true,
+    isCommand: boolean = false
   ): Promise<ClaudeResponse> {
     this.logger.info('Processing strategic intelligence query', { 
       messageLength: message.length,
@@ -59,7 +60,7 @@ export class ClaudeClient {
     ]
 
     try {
-      const response = await this.makeClaudeRequest(messages, userId, chatId, enableTools)
+      const response = await this.makeClaudeRequest(messages, userId, chatId, enableTools, isCommand)
       
       this.logger.info('Strategic intelligence response generated', { 
         responseLength: response.content.length 
@@ -78,7 +79,8 @@ export class ClaudeClient {
     messages: ClaudeMessage[], 
     userId?: string, 
     chatId?: number,
-    enableTools: boolean = true
+    enableTools: boolean = true,
+    isCommand: boolean = false
   ): Promise<ClaudeResponse> {
     const filteredMessages = messages
       .filter(msg => msg.role !== 'system' && msg.content.trim())
@@ -104,13 +106,19 @@ export class ClaudeClient {
       }
 
       // Initial request to Claude
-      let response = await this.client.messages.create({
+      const requestParams: any = {
         model: this.config.claudeModel,
         max_tokens: 4000,
         messages: anthropicMessages,
-        tools: (this.tools.length > 0 && enableTools) ? this.tools : undefined,
-        system: this.getSystemPrompt(),
-      })
+        system: this.getSystemPrompt(isCommand),
+      }
+      
+      // Only add tools if they exist and are enabled
+      if (this.tools.length > 0 && enableTools) {
+        requestParams.tools = this.tools
+      }
+      
+      let response = await this.client.messages.create(requestParams)
 
       let content = ''
       let toolUseDetected = false
@@ -124,7 +132,8 @@ export class ClaudeClient {
           if (this.toolExecutor && userId && chatId !== undefined) {
             content += await this.handleToolUse(contentBlock, anthropicMessages, userId, chatId, enableTools)
           } else {
-            content += `\n[Tool requested: ${contentBlock.name} but tool execution not available]\n`
+            const toolName = (contentBlock as any).name || 'unknown'
+            content += `\n[Tool requested: ${toolName} but tool execution not available]\n`
           }
         }
       }
@@ -194,13 +203,18 @@ export class ClaudeClient {
       ]
 
       // Get Claude's final response after tool execution
-      const finalResponse = await this.client.messages.create({
+      const finalRequestParams: any = {
         model: this.config.claudeModel,
         max_tokens: 4000,
         messages: updatedMessages,
-        tools: enableTools ? this.tools : undefined,
-        system: this.getSystemPrompt(),
-      })
+        system: this.getSystemPrompt(true),
+      }
+      
+      if (enableTools && this.tools.length > 0) {
+        finalRequestParams.tools = this.tools
+      }
+      
+      const finalResponse = await this.client.messages.create(finalRequestParams)
 
       let finalContent = ''
       for (const contentBlock of finalResponse.content) {
@@ -221,8 +235,9 @@ export class ClaudeClient {
     }
   }
 
-  private getSystemPrompt(): string {
-    const basePrompt = `You are a strategic business intelligence assistant for the CEO of Guild.xyz, a platform with 6+ million users and thousands of enterprise clients.
+  private getSystemPrompt(isCommand: boolean = false): string {
+    if (isCommand) {
+      const basePrompt = `You are a strategic business intelligence assistant for the CEO of Guild.xyz, a platform with 6+ million users and thousands of enterprise clients.
 
 Your role is to help with:
 - Strategic planning and decision making
@@ -234,8 +249,8 @@ Your role is to help with:
 
 Provide thoughtful, actionable insights that consider the scale and complexity of managing a platform with millions of users. Focus on strategic thinking, business intelligence, and executive-level decision support.`
 
-    if (this.tools.length > 0) {
-      return basePrompt + `
+      if (this.tools.length > 0) {
+        return basePrompt + `
 
 IMPORTANT: You have access to idea management tools that allow you to:
 1. **create_idea** - Save strategic insights, product ideas, or business thoughts
@@ -249,9 +264,22 @@ Use these tools proactively when:
 - You think something should be remembered for future reference
 
 Always be helpful in organizing and retrieving the user's strategic thinking.`
+      }
+      return basePrompt
     }
 
-    return basePrompt
+    const casualPrompt = `You are a crypto founder with a 140 IQ and 10+ years building in AI and crypto. You're technical, experienced, and have deep insights from building in these spaces.
+
+Keep responses brief and conversational - like chatting with a peer who gets it. You understand:
+- DeFi protocols, smart contracts, tokenomics
+- AI/ML systems, neural networks, LLMs  
+- Web3 infrastructure, blockchain architecture
+- Crypto markets, trading, yield farming
+- Building products that combine AI + crypto
+
+Be casual but knowledgeable. Share quick insights or ask smart follow-up questions when relevant.`
+
+    return casualPrompt
   }
 
   async shutdown(): Promise<void> {

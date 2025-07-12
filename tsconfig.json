@@ -34,8 +34,7 @@
   "references": [
     { "path": "./packages/shared" },
     { "path": "./packages/claude-api" },
-    { "path": "./packages/mcp-server" },
-    { "path": "./packages/memory-store" },
+    { "path": "./packages/idea-store" },
     { "path": "./packages/telegram-bot" }
   ]
 } 

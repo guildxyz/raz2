@@ -105,7 +105,7 @@ Format your response as JSON:
   "suggestedTags": ["tag1", "tag2", "tag3"]
 }`
 
-      const response = await this.claude.sendMessage(prompt)
+      const response = await this.claude.sendMessage(prompt, [], undefined, undefined, true, true)
       
       try {
         const jsonStart = response.content.indexOf('{')

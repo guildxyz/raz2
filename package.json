@@ -12,6 +12,7 @@
     "build-ui": "./scripts/build-ui.sh",
     "dev": "bun run --filter='*' dev",
     "start": "./scripts/db-setup.sh && cd packages/telegram-bot && bun run start",
+    "start-core": "./scripts/db-setup.sh && cd packages/core && bun run dev",
     "db:migrate": "./scripts/db-setup.sh",
     "start-bot": "./scripts/run.sh",
     "start-ui": "cd packages/idea-ui && bun run dev",

@@ -13,110 +13,23 @@ import {
   AlertCircle,
   User,
   Hash,
-  Phone,
-  Mail,
-  MapPin,
-  TrendingUp,
-  BarChart3,
-  Eye,
-  ChevronDown,
-  ChevronUp,
-  MessageCircle,
   Activity,
   Settings,
   Plus,
-  Shield,
   Zap,
   Brain,
   Star,
-  Target,
   Crown,
-  Award,
-  Scale
+  BarChart3
 } from 'lucide-react'
-
-interface Conversation {
-  id: string
-  userId: string
-  username: string
-  firstName: string
-  lastMessage: string
-  lastActivity: Date
-  messageCount: number
-  status: 'active' | 'inactive'
-}
-
-interface Contact {
-  id: string
-  username: string
-  firstName: string
-  lastName?: string
-  email?: string
-  phone?: string
-  location?: string
-  joinedAt: Date
-  lastSeen: Date
-  isActive: boolean
-  totalMessages: number
-  avgResponseTime: string
-  primaryTopics: string[]
-  interactionScore: number
-  influenceWeight: number
-  role: 'advisor' | 'colleague' | 'stakeholder' | 'expert' | 'investor' | 'team'
-  decisionAreas: string[]
-  trustLevel: 'high' | 'medium' | 'low'
-  conversationHistory: {
-    date: Date
-    messageCount: number
-    topic: string
-    sentiment: 'positive' | 'neutral' | 'negative'
-  }[]
-  preferences: {
-    preferredTime: string
-    communicationStyle: 'formal' | 'casual'
-    interests: string[]
-  }
-}
-
-interface BotInstance {
-  id: string
-  name: string
-  description: string
-  avatar?: string
-  personality: 'professional' | 'friendly' | 'technical' | 'creative'
-  status: 'running' | 'stopped' | 'error' | 'maintenance'
-  createdAt: Date
-  lastActivity: Date
-  version: string
-  stats: {
-    totalUsers: number
-    activeConversations: number
-    messagesProcessed: number
-    uptime: string
-    avgResponseTime: string
-    errorRate: number
-  }
-  configuration: {
-    model: string
-    temperature: number
-    maxTokens: number
-    systemPrompt: string
-    enabledFeatures: string[]
-    rateLimits: {
-      messagesPerMinute: number
-      messagesPerDay: number
-    }
-  }
-  deployment: {
-    environment: 'production' | 'staging' | 'development'
-    region: string
-    resources: {
-      cpu: string
-      memory: string
-      storage: string
-    }
-  }
-}
+import { 
+  mockConversations, 
+  mockContacts, 
+  mockBots,
+  type Conversation,
+  type Contact,
+  type BotInstance
+} from '../data'
 
 export const BotManagement = () => {
   const [selectedBot, setSelectedBot] = useState<string>('strategic-ai')
@@ -126,191 +39,9 @@ export const BotManagement = () => {
   const [messageToSend, setMessageToSend] = useState('')
   const [selectedUser, setSelectedUser] = useState('')
 
-  const [conversations] = useState<Conversation[]>([
-    {
-      id: '1',
-      userId: '123456789',
-      username: 'razvan',
-      firstName: 'Razvan',
-      lastMessage: 'Can you help me analyze the enterprise sales strategy?',
-      lastActivity: new Date(Date.now() - 5 * 60 * 1000),
-      messageCount: 47,
-      status: 'active'
-    },
-    {
-      id: '2',
-      userId: '987654321',
-      username: 'john_doe',
-      firstName: 'John',
-      lastMessage: 'Thanks for the product roadmap insights!',
-      lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      messageCount: 23,
-      status: 'inactive'
-    },
-    {
-      id: '3',
-      userId: '456789123',
-      username: 'sarah_m',
-      firstName: 'Sarah',
-      lastMessage: 'What are the latest competitive analysis findings?',
-      lastActivity: new Date(Date.now() - 15 * 60 * 1000),
-      messageCount: 31,
-      status: 'active'
-    }
-  ])
-
-  const [contacts] = useState<Contact[]>([
-    {
-      id: '123456789',
-      username: 'razvan',
-      firstName: 'Razvan',
-      lastName: 'Cosma',
-      email: 'razvan@guild.xyz',
-      phone: '+1 (555) 123-4567',
-      location: 'San Francisco, CA',
-      joinedAt: new Date('2024-01-15'),
-      lastSeen: new Date(Date.now() - 5 * 60 * 1000),
-      isActive: true,
-      totalMessages: 847,
-      avgResponseTime: '2.3 minutes',
-      primaryTopics: ['Strategy', 'Product', 'Enterprise Sales'],
-      interactionScore: 95,
-      influenceWeight: 100,
-      role: 'advisor',
-      decisionAreas: ['Strategic Direction', 'Product Vision', 'Market Entry'],
-      trustLevel: 'high',
-      conversationHistory: [
-        {
-          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-          messageCount: 12,
-          topic: 'Enterprise Sales Strategy',
-          sentiment: 'positive'
-        }
-      ],
-      preferences: {
-        preferredTime: 'Morning (9-11 AM)',
-        communicationStyle: 'formal',
-        interests: ['Strategic Planning', 'Market Analysis', 'Team Management']
-      }
-    }
-  ])
-
-  const [bots] = useState<BotInstance[]>([
-    {
-      id: 'strategic-ai',
-      name: 'Strategic AI Assistant',
-      description: 'Primary strategic intelligence bot for CEO decision support',
-      personality: 'professional',
-      status: 'running',
-      createdAt: new Date('2024-01-15'),
-      lastActivity: new Date(Date.now() - 5 * 60 * 1000),
-      version: '2.1.3',
-      stats: {
-        totalUsers: 3,
-        activeConversations: 2,
-        messagesProcessed: 1096,
-        uptime: '2h 45m',
-        avgResponseTime: '1.2s',
-        errorRate: 0.02
-      },
-      configuration: {
-        model: 'claude-3-sonnet',
-        temperature: 0.7,
-        maxTokens: 4000,
-        systemPrompt: 'You are a strategic AI assistant for Guild.xyz CEO...',
-        enabledFeatures: ['idea-capture', 'semantic-search', 'reminders', 'analytics'],
-        rateLimits: {
-          messagesPerMinute: 30,
-          messagesPerDay: 1000
-        }
-      },
-      deployment: {
-        environment: 'production',
-        region: 'us-west-1',
-        resources: {
-          cpu: '2 vCPUs',
-          memory: '4 GB',
-          storage: '20 GB SSD'
-        }
-      }
-    },
-    {
-      id: 'customer-support',
-      name: 'Customer Support Bot',
-      description: 'Handles customer inquiries and support tickets',
-      personality: 'friendly',
-      status: 'running',
-      createdAt: new Date('2024-02-01'),
-      lastActivity: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      version: '1.8.2',
-      stats: {
-        totalUsers: 47,
-        activeConversations: 12,
-        messagesProcessed: 2847,
-        uptime: '15d 3h',
-        avgResponseTime: '0.8s',
-        errorRate: 0.01
-      },
-      configuration: {
-        model: 'claude-3-haiku',
-        temperature: 0.5,
-        maxTokens: 2000,
-        systemPrompt: 'You are a helpful customer support assistant...',
-        enabledFeatures: ['ticket-creation', 'knowledge-base', 'escalation'],
-        rateLimits: {
-          messagesPerMinute: 60,
-          messagesPerDay: 2000
-        }
-      },
-      deployment: {
-        environment: 'production',
-        region: 'us-east-1',
-        resources: {
-          cpu: '4 vCPUs',
-          memory: '8 GB',
-          storage: '50 GB SSD'
-        }
-      }
-    },
-    {
-      id: 'developer-assistant',
-      name: 'Developer Assistant',
-      description: 'Technical support and code assistance for development team',
-      personality: 'technical',
-      status: 'stopped',
-      createdAt: new Date('2024-03-15'),
-      lastActivity: new Date(Date.now() - 6 * 60 * 60 * 1000),
-      version: '0.9.1-beta',
-      stats: {
-        totalUsers: 8,
-        activeConversations: 0,
-        messagesProcessed: 342,
-        uptime: '0m',
-        avgResponseTime: 'N/A',
-        errorRate: 0.05
-      },
-      configuration: {
-        model: 'claude-3-opus',
-        temperature: 0.3,
-        maxTokens: 8000,
-        systemPrompt: 'You are a technical assistant for developers...',
-        enabledFeatures: ['code-review', 'debugging', 'documentation'],
-        rateLimits: {
-          messagesPerMinute: 20,
-          messagesPerDay: 500
-        }
-      },
-      deployment: {
-        environment: 'development',
-        region: 'us-west-2',
-        resources: {
-          cpu: '1 vCPU',
-          memory: '2 GB',
-          storage: '10 GB SSD'
-        }
-      }
-    }
-  ])
+  const [conversations] = useState<Conversation[]>(mockConversations)
+  const [contacts] = useState<Contact[]>(mockContacts)
+  const [bots] = useState<BotInstance[]>(mockBots)
 
   const currentBot = bots.find(bot => bot.id === selectedBot)
   const currentBotConversations = conversations.filter(() => selectedBot === 'strategic-ai' ? true : false)

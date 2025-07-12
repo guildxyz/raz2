@@ -20,7 +20,8 @@ import { DatabaseManagement } from './components/DatabaseManagement'
 import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { ConfigurationManagement } from './components/ConfigurationManagement'
 import { LogsMonitoring } from './components/LogsMonitoring'
-import { useIdeaStore } from './hooks/useIdeaStore'
+import { useIdeaStore } from './store'
+import { mockSystemStatus } from './data'
 import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask, SubtaskStatus } from './types'
 
 type TabType = 'overview' | 'ideas' | 'bot' | 'database' | 'analytics' | 'config' | 'logs'
@@ -42,12 +43,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showForm, setShowForm] = useState(false)
   const [editingIdea, setEditingIdea] = useState<Idea | undefined>()
-  const [systemStatus] = useState({
-    bot: { status: 'running', uptime: '2h 15m', lastActivity: '2 minutes ago' },
-    database: { status: 'connected', latency: '15ms', connections: 3 },
-    claude: { status: 'active', tokensUsed: 45230, requestsToday: 127 },
-    webServer: { status: 'running', port: 3000, requests: 1439 }
-  })
+  const [systemStatus] = useState(mockSystemStatus)
 
   useEffect(() => {
     refreshIdeas()

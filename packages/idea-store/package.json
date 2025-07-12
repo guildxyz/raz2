@@ -3,9 +3,16 @@
   "version": "1.0.0",
   "description": "Idea storage and retrieval with reminders using PostgreSQL with pgvector extension",
   "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "bun run clean && bun build --target=node --outdir=dist src/index.ts",
+    "build": "bun run clean && npx tsc --build",
     "dev": "bun run --watch src/index.ts",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",

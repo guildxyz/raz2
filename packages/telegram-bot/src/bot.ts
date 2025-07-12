@@ -100,7 +100,14 @@ export class TelegramBotService {
         },
         text: msg.text,
         hasText,
-        messageType
+        messageType,
+        chatType: msg.chat.type,
+        entities: msg.entities?.map(e => ({
+          type: e.type,
+          offset: e.offset,
+          length: e.length,
+          text: msg.text?.substring(e.offset, e.offset + e.length)
+        }))
       });
       
       await this.handleMessage(msg);
@@ -152,20 +159,30 @@ export class TelegramBotService {
       if (processed.isGroupChat && !processed.command?.command) {
         const shouldRespond = processed.isReplyToBotMessage || processed.mentionsBot;
         
-        this.logger.info('Group chat message evaluation', {
+        this.logger.info('=== GROUP CHAT EVALUATION ===', {
           chatId: processed.chatId,
-          shouldRespond,
+          messageText: processed.text,
+          isGroupChat: processed.isGroupChat,
+          hasCommand: !!processed.command?.command,
           isReplyToBotMessage: processed.isReplyToBotMessage,
           mentionsBot: processed.mentionsBot,
-          hasCommand: !!processed.command?.command
+          shouldRespond,
+          decision: shouldRespond ? 'WILL RESPOND' : 'WILL IGNORE'
         });
         
         if (!shouldRespond) {
-          this.logger.info('Ignoring group message - bot not mentioned or replied to', {
+          this.logger.info('🔇 Ignoring group message - bot not mentioned or replied to', {
             chatId: processed.chatId,
-            messageId: msg.message_id
+            messageId: msg.message_id,
+            reason: 'Not mentioned and not a reply to bot'
           });
           return;
+        } else {
+          this.logger.info('📢 Responding to group message', {
+            chatId: processed.chatId,
+            messageId: msg.message_id,
+            reason: processed.isReplyToBotMessage ? 'Reply to bot' : 'Bot mentioned'
+          });
         }
       }
 
@@ -266,25 +283,85 @@ export class TelegramBotService {
   }
   
   private isBotMentioned(text: string, entities?: TelegramBot.MessageEntity[]): boolean {
-    if (!this.botUsername) return false;
+    if (!this.botUsername) {
+      this.logger.info('No bot username available for mention detection');
+      return false;
+    }
     
-    // Check for @username mentions
-    if (text.includes(`@${this.botUsername}`)) {
+    this.logger.info('=== MENTION DETECTION START ===', {
+      text,
+      botUsername: this.botUsername,
+      entitiesCount: entities?.length || 0,
+      entities: entities?.map(e => ({
+        type: e.type,
+        offset: e.offset,
+        length: e.length,
+        text: text.substring(e.offset, e.offset + e.length)
+      }))
+    });
+    
+    // Method 1: Check for @username mentions in text (case insensitive)
+    const mentionPattern = `@${this.botUsername}`;
+    const lowerText = text.toLowerCase();
+    const lowerMention = mentionPattern.toLowerCase();
+    
+    this.logger.info('Testing text-based mention detection', {
+      originalText: text,
+      lowerText,
+      mentionPattern,
+      lowerMention,
+      containsMention: lowerText.includes(lowerMention)
+    });
+    
+    if (lowerText.includes(lowerMention)) {
+      this.logger.info('✅ Bot mention found via text search', { mentionPattern, matched: true });
       return true;
     }
     
-    // Check for mention entities
-    if (entities) {
+    // Method 2: Check for mention entities
+    if (entities && entities.length > 0) {
+      this.logger.info('Testing entity-based mention detection', { entitiesCount: entities.length });
+      
       for (const entity of entities) {
+        this.logger.info('Processing entity', {
+          type: entity.type,
+          offset: entity.offset,
+          length: entity.length
+        });
+        
         if (entity.type === 'mention') {
           const mention = text.substring(entity.offset, entity.offset + entity.length);
-          if (mention === `@${this.botUsername}`) {
+          
+          this.logger.info('Found mention entity', {
+            mention,
+            expectedMention: mentionPattern,
+            exactMatch: mention === mentionPattern,
+            caseInsensitiveMatch: mention.toLowerCase() === lowerMention
+          });
+          
+          if (mention === mentionPattern || mention.toLowerCase() === lowerMention) {
+            this.logger.info('✅ Bot mention found via entity', { mention });
             return true;
           }
         }
       }
     }
     
+    // Method 3: Fallback - check for username without @ (in case entities don't work)
+    const usernameOnly = this.botUsername.toLowerCase();
+    this.logger.info('Testing username fallback detection', {
+      username: this.botUsername,
+      usernameOnly,
+      containsUsername: lowerText.includes(usernameOnly)
+    });
+    
+    if (lowerText.includes(usernameOnly)) {
+      this.logger.info('✅ Bot mention found via username fallback', { username: this.botUsername });
+      return true;
+    }
+    
+    this.logger.info('❌ No bot mention detected in any method');
+    this.logger.info('=== MENTION DETECTION END ===');
     return false;
   }
 
@@ -715,7 +792,8 @@ Use /forget <ID> to delete an idea`);
           conversation.messages,
           conversation.userId,
           chatId,
-          isStrategicMessage // Only enable tools for strategic messages
+          isStrategicMessage, // Only enable tools for strategic messages
+          false // isCommand: false for casual conversation
         ),
         new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Claude API timeout')), 30000)
@@ -1002,7 +1080,8 @@ I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
         id: me.id,
         firstName: me.first_name,
         isBot: me.is_bot,
-        username: this.botUsername
+        username: this.botUsername,
+        mentionDetectionReady: !!this.botUsername
       });
 
       this.logger.info('Initializing Claude client...');
