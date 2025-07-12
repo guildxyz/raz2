@@ -23,19 +23,21 @@ bun run build
 echo "🗃️ Preparing database migrations..."
 npm run db:generate
 
-# Skip UI build temporarily due to TypeScript errors
-# echo "🌐 Building strategic intelligence dashboard..."
-# cd ../idea-ui
-# bun run build
+# Build strategic intelligence dashboard
+echo "🌐 Building strategic intelligence dashboard..."
+cd ../idea-ui
+bun install
+bun run build
 
 # Build telegram-bot package (CEO interface)
 echo "📱 Building CEO communication interface..."
 cd ../telegram-bot
 bun run build
 
-# Copy UI files to telegram-bot package (use existing dist)
-# echo "📋 Deploying strategic dashboard to CEO interface..."
-# cd ../../
-# ./scripts/build-ui.sh
+# Deploy UI to telegram-bot package
+echo "📋 Deploying strategic dashboard to CEO interface..."
+cd ../../
+rm -rf packages/telegram-bot/ui-dist
+cp -r packages/idea-ui/dist packages/telegram-bot/ui-dist
 
 echo "✅ Guild.xyz Strategic Intelligence System built successfully!" 
