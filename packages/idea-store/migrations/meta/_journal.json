@@ -15,6 +15,13 @@
       "when": 1752088849795,
       "tag": "20250709192049_serious_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752316864278,
+      "tag": "20250712104104_striped_catseye",
+      "breakpoints": true
     }
   ]
 }

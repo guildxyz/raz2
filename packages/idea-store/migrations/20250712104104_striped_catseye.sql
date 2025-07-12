@@ -1,0 +1,1 @@
+ALTER TABLE "ideas" ALTER COLUMN "chat_id" SET DATA TYPE bigint;

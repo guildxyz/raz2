@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, timestamp, integer, boolean, json, uuid, index, vector } from 'drizzle-orm/pg-core'
+import { pgTable, text, varchar, timestamp, integer, boolean, json, uuid, index, vector, bigint } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 import type { IdeaCategory, IdeaPriority, IdeaStatus, ReminderType } from '@raz2/shared'
 
@@ -11,7 +11,7 @@ export const ideas = pgTable('ideas', {
   status: varchar('status', { length: 20 }).notNull().$type<IdeaStatus>().default('active'),
   tags: json('tags').$type<string[]>().default([]),
   userId: varchar('user_id', { length: 100 }).notNull(),
-  chatId: integer('chat_id'),
+  chatId: bigint('chat_id', { mode: 'number' }),
   embedding: vector('embedding', { dimensions: 1536 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
