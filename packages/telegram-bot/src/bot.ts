@@ -340,7 +340,9 @@ export class TelegramBotService {
       lowerText,
       mentionPattern,
       lowerMention,
-      containsMention: lowerText.includes(lowerMention)
+      containsMention: lowerText.includes(lowerMention),
+      botUsernameLength: this.botUsername.length,
+      textLength: text.length
     });
     
     if (lowerText.includes(lowerMention)) {
@@ -377,20 +379,100 @@ export class TelegramBotService {
       }
     }
     
-    // Method 3: Fallback - check for username without @ (in case entities don't work)
+    // Method 3: Enhanced fallback - check for username variations and common aliases
     const usernameOnly = this.botUsername.toLowerCase();
+    
+    // Generate common variations of the bot name
+    const variations = [
+      usernameOnly, // full username like "raz_2_bot"
+      usernameOnly.replace(/_/g, ''), // remove underscores: "raz2bot"
+      usernameOnly.replace(/_bot$/, ''), // remove _bot suffix: "raz_2"
+      usernameOnly.replace(/_/g, '').replace(/bot$/, ''), // remove underscores and bot: "raz2"
+    ];
+    
+    // Also check for the name parts
+    const nameParts = usernameOnly.split('_').filter(part => part && part !== 'bot');
+    variations.push(...nameParts);
+    
     this.logger.info('Testing username fallback detection', {
       username: this.botUsername,
       usernameOnly,
-      containsUsername: lowerText.includes(usernameOnly)
+      variations,
+      text: lowerText,
+      nameParts
     });
     
-    if (lowerText.includes(usernameOnly)) {
-      this.logger.info('✅ Bot mention found via username fallback', { username: this.botUsername });
-      return true;
+    for (const variation of variations) {
+      if (variation.length >= 3 && lowerText.includes(variation)) { // Only check variations with 3+ chars
+        this.logger.info('✅ Bot mention found via username variation', { 
+          variation, 
+          originalUsername: this.botUsername,
+          matchedText: lowerText,
+          variationLength: variation.length,
+          textContainsVariation: lowerText.includes(variation)
+        });
+        return true;
+      } else if (variation.length >= 3) {
+        this.logger.info('❌ Variation not found in text', {
+          variation,
+          variationLength: variation.length,
+          textContainsVariation: lowerText.includes(variation),
+          lowerText: lowerText.substring(0, 50) + (lowerText.length > 50 ? '...' : '')
+        });
+      }
     }
     
-    this.logger.info('❌ No bot mention detected in any method');
+    // Method 4: Check for common bot addressing patterns
+    const botAddressingPatterns = [
+      /\bbot\b/i,
+      /\bai\b/i,
+      /\bassistant\b/i
+    ];
+    
+    // Only trigger on bot addressing if the message is clearly directed at the bot
+    const isDirectlyAddressed = /^(hey|hi|hello|yo|whatsup|what's up|how are you|sup)/i.test(text.trim());
+    
+    this.logger.info('Testing direct addressing patterns', {
+      isDirectlyAddressed,
+      textStartsWithGreeting: text.trim().substring(0, 20),
+      testPatternResult: /^(hey|hi|hello|yo|whatsup|what's up|how are you|sup)/i.test(text.trim())
+    });
+    
+    if (isDirectlyAddressed) {
+      for (const pattern of botAddressingPatterns) {
+        if (pattern.test(text)) {
+          this.logger.info('✅ Bot mention found via addressing pattern', { 
+            pattern: pattern.source,
+            text: text.substring(0, 50)
+          });
+          return true;
+        }
+      }
+      
+      // If directly addressed and contains any part of the bot name
+      for (const variation of variations) {
+        if (variation.length >= 3 && lowerText.includes(variation)) {
+          this.logger.info('✅ Bot mention found via direct addressing with name', { 
+            variation,
+            text: text.substring(0, 50)
+          });
+          return true;
+        }
+      }
+    }
+    
+    this.logger.info('❌ No bot mention detected in any method', {
+      checkedVariations: variations,
+      isDirectlyAddressed,
+      testedPatterns: botAddressingPatterns.map(p => p.source),
+      finalTextAnalysis: {
+        originalText: text,
+        lowerText,
+        textLength: text.length,
+        containsAtSymbol: text.includes('@'),
+        containsBotUsername: lowerText.includes(this.botUsername.toLowerCase())
+      }
+    });
     this.logger.info('=== MENTION DETECTION END ===');
     return false;
   }
@@ -499,6 +581,11 @@ export class TelegramBotService {
       case 'forget_personality':
         this.logger.info('Executing forget personality command', { chatId });
         await this.handleForgetPersonalityCommand(processed);
+        break;
+      
+      case 'debug':
+        this.logger.info('Executing debug command', { chatId });
+        await this.handleDebugCommand(processed);
         break;
       
       default:
@@ -933,6 +1020,67 @@ ${traits.responsePatterns}${vocabularyText}${phrasesText}${topicsText}
     }
   }
 
+  private async handleDebugCommand(processed: ProcessedMessage): Promise<void> {
+    const { chatId, command } = processed;
+
+    const subCommand = command?.args?.[0]?.toLowerCase();
+
+    if (subCommand === 'mention') {
+      // Test mention detection with a sample text
+      const testText = command?.args?.slice(1).join(' ') || 'whatsup raz2?';
+      
+      // Store original log level and temporarily enable debug logging
+      this.logger.info('🔍 **DETAILED MENTION DETECTION TEST**');
+      
+      const mentionResult = this.isBotMentioned(testText, []);
+      
+      // Also test with the specific failing cases
+      const testCases = [
+        testText,
+        'yeah @raz_2_bot',
+        'hey raz2',
+        '@raz_2_bot hello',
+        'raz2 are you there?'
+      ];
+      
+      let resultsText = `🔍 **Mention Detection Test Results**\n\n**Bot Username:** @${this.botUsername || 'not set'}\n**Bot ID:** ${this.botId || 'not set'}\n\n`;
+      
+      for (const testCase of testCases) {
+        const result = this.isBotMentioned(testCase, []);
+        resultsText += `**Test:** "${testCase}"\n**Result:** ${result ? '✅ DETECTED' : '❌ NOT DETECTED'}\n\n`;
+      }
+      
+      resultsText += `**Original test:** "${testText}"\n**Result:** ${mentionResult ? '✅ DETECTED' : '❌ NOT DETECTED'}\n\n`;
+      resultsText += `📋 **Check logs for detailed analysis of each detection method.**`;
+      
+      await this.sendMessage(chatId, resultsText);
+      return;
+    }
+
+    // Default debug info
+    const debugInfo = `🔧 **Bot Debug Information**
+
+**Bot Identity:**
+• Username: @${this.botUsername || 'not set'}
+• ID: ${this.botId || 'not set'}
+• First Name: ${this.botInfo?.firstName || 'not set'}
+
+**Configuration:**
+• Learning from: ${Array.from(this.learnFromUsers).map(u => `@${u}`).join(', ') || 'none'}
+• Conversations tracked: ${this.conversations.size}
+• Idea service: ${this.ideaService.isIdeaEnabled() ? 'enabled' : 'disabled'}
+• Web server: ${this.webServer ? 'enabled' : 'disabled'}
+
+**Debug Commands:**
+• \`/debug mention <text>\` - Test mention detection with custom text
+• \`/debug mention\` - Test with default cases including "@raz_2_bot" and "hey raz2"
+• \`/debug\` - Show this debug info
+
+**Note:** This command helps troubleshoot group chat issues and mention detection.`;
+
+    await this.sendMessage(chatId, debugInfo);
+  }
+
   private async handleChatMessage(
     processed: ProcessedMessage,
     conversation: ConversationState
@@ -1326,6 +1474,10 @@ This keeps conversations focused and prevents spam.`;
 /learn remove <username> - Stop learning from user
 /personality <username> - View learned communication traits
 /forget_personality <username> - Clear personality data
+
+🔧 Debugging:
+/debug - Show bot debug information
+/debug mention <text> - Test mention detection
 
 🤖 The bot adapts its casual responses to match learned communication patterns while maintaining its core crypto founder personality.`;
 

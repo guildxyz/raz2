@@ -23,7 +23,7 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { LogsMonitoring } from './components/LogsMonitoring'
 import { ConversationExplorer } from './components/ConversationExplorer'
 import { ContactsExplorer } from './components/ContactsExplorer'
-import { ContactProfile } from './components/ContactProfile'
+
 import { 
   ideasAtom,
   loadingAtom,
@@ -492,16 +492,7 @@ export default function App() {
           </>
         )}
 
-        {activeTab === 'contacts' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <ContactsExplorer />
-            </div>
-            <div>
-              <ContactProfile />
-            </div>
-          </div>
-        )}
+        {activeTab === 'contacts' && <ContactsExplorer />}
 
         {activeTab === 'bot' && <BotManagement />}
         {activeTab === 'database' && <DatabaseManagement />}
