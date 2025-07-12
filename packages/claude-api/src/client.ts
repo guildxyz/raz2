@@ -43,12 +43,14 @@ export class ClaudeClient {
     message: string, 
     conversationHistory: ClaudeMessage[] = [],
     userId?: string,
-    chatId?: number
+    chatId?: number,
+    enableTools: boolean = true
   ): Promise<ClaudeResponse> {
     this.logger.info('Processing strategic intelligence query', { 
       messageLength: message.length,
       historyLength: conversationHistory.length,
-      hasTools: this.tools.length > 0
+      hasTools: this.tools.length > 0,
+      toolsEnabled: enableTools
     })
 
     const messages: ClaudeMessage[] = [
@@ -57,7 +59,7 @@ export class ClaudeClient {
     ]
 
     try {
-      const response = await this.makeClaudeRequest(messages, userId, chatId)
+      const response = await this.makeClaudeRequest(messages, userId, chatId, enableTools)
       
       this.logger.info('Strategic intelligence response generated', { 
         responseLength: response.content.length 
@@ -75,7 +77,8 @@ export class ClaudeClient {
   private async makeClaudeRequest(
     messages: ClaudeMessage[], 
     userId?: string, 
-    chatId?: number
+    chatId?: number,
+    enableTools: boolean = true
   ): Promise<ClaudeResponse> {
     const filteredMessages = messages
       .filter(msg => msg.role !== 'system' && msg.content.trim())
@@ -105,7 +108,7 @@ export class ClaudeClient {
         model: this.config.claudeModel,
         max_tokens: 4000,
         messages: anthropicMessages,
-        tools: this.tools.length > 0 ? this.tools : undefined,
+        tools: (this.tools.length > 0 && enableTools) ? this.tools : undefined,
         system: this.getSystemPrompt(),
       })
 
@@ -119,7 +122,7 @@ export class ClaudeClient {
         } else if (contentBlock.type === 'tool_use') {
           toolUseDetected = true
           if (this.toolExecutor && userId && chatId !== undefined) {
-            content += await this.handleToolUse(contentBlock, anthropicMessages, userId, chatId)
+            content += await this.handleToolUse(contentBlock, anthropicMessages, userId, chatId, enableTools)
           } else {
             content += `\n[Tool requested: ${contentBlock.name} but tool execution not available]\n`
           }
@@ -146,7 +149,8 @@ export class ClaudeClient {
     toolUse: any, 
     conversationMessages: any[], 
     userId: string, 
-    chatId: number
+    chatId: number,
+    enableTools: boolean
   ): Promise<string> {
     if (!this.toolExecutor) {
       return `\n[Tool ${toolUse.name} requested but no executor available]\n`
@@ -194,7 +198,7 @@ export class ClaudeClient {
         model: this.config.claudeModel,
         max_tokens: 4000,
         messages: updatedMessages,
-        tools: this.tools,
+        tools: enableTools ? this.tools : undefined,
         system: this.getSystemPrompt(),
       })
 

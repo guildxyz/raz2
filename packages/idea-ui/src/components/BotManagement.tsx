@@ -46,10 +46,6 @@ interface Conversation {
   status: 'active' | 'inactive'
 }
 
-
-
-
-
 interface Contact {
   id: string
   username: string
@@ -123,13 +119,13 @@ interface BotInstance {
 }
 
 export const BotManagement = () => {
-  const [activeTab, setActiveTab] = useState<'bots' | 'conversations' | 'contacts' | 'controls'>('bots')
+  const [selectedBot, setSelectedBot] = useState<string>('strategic-ai')
+  const [activeManagementTab, setActiveManagementTab] = useState<'conversations' | 'contacts' | 'controls' | 'analytics'>('conversations')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContact, setSelectedContact] = useState<string | null>(null)
-  const [selectedBot, setSelectedBot] = useState<string | null>('strategic-ai')
-  const [expandedBot, setExpandedBot] = useState<string | null>(null)
-  const [editingInfluence, setEditingInfluence] = useState<string | null>(null)
-  const [showInfluencePanel, setShowInfluencePanel] = useState(false)
+  const [messageToSend, setMessageToSend] = useState('')
+  const [selectedUser, setSelectedUser] = useState('')
+
   const [conversations] = useState<Conversation[]>([
     {
       id: '1',
@@ -163,13 +159,6 @@ export const BotManagement = () => {
     }
   ])
 
-
-
-
-
-  const [messageToSend, setMessageToSend] = useState('')
-  const [selectedUser, setSelectedUser] = useState('')
-
   const [contacts] = useState<Contact[]>([
     {
       id: '123456789',
@@ -196,101 +185,12 @@ export const BotManagement = () => {
           messageCount: 12,
           topic: 'Enterprise Sales Strategy',
           sentiment: 'positive'
-        },
-        {
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-          messageCount: 8,
-          topic: 'Product Roadmap',
-          sentiment: 'neutral'
-        },
-        {
-          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          messageCount: 15,
-          topic: 'Competitive Analysis',
-          sentiment: 'positive'
         }
       ],
       preferences: {
         preferredTime: 'Morning (9-11 AM)',
         communicationStyle: 'formal',
         interests: ['Strategic Planning', 'Market Analysis', 'Team Management']
-      }
-    },
-    {
-      id: '987654321',
-      username: 'john_doe',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@example.com',
-      location: 'New York, NY',
-      joinedAt: new Date('2024-02-20'),
-      lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      isActive: false,
-      totalMessages: 156,
-      avgResponseTime: '8.7 minutes',
-      primaryTopics: ['Product', 'Technical'],
-      interactionScore: 72,
-      influenceWeight: 65,
-      role: 'colleague',
-      decisionAreas: ['Technical Architecture', 'Product Features'],
-      trustLevel: 'medium',
-      conversationHistory: [
-        {
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-          messageCount: 5,
-          topic: 'Technical Integration',
-          sentiment: 'neutral'
-        },
-        {
-          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-          messageCount: 7,
-          topic: 'Product Features',
-          sentiment: 'positive'
-        }
-      ],
-      preferences: {
-        preferredTime: 'Afternoon (2-4 PM)',
-        communicationStyle: 'casual',
-        interests: ['Technology', 'Integration', 'Automation']
-      }
-    },
-    {
-      id: '456789123',
-      username: 'sarah_m',
-      firstName: 'Sarah',
-      lastName: 'Miller',
-      email: 'sarah.miller@corp.com',
-      phone: '+1 (555) 987-6543',
-      location: 'Austin, TX',
-      joinedAt: new Date('2024-03-10'),
-      lastSeen: new Date(Date.now() - 15 * 60 * 1000),
-      isActive: true,
-      totalMessages: 293,
-      avgResponseTime: '4.1 minutes',
-      primaryTopics: ['Market Research', 'Analytics'],
-      interactionScore: 88,
-      influenceWeight: 85,
-      role: 'expert',
-      decisionAreas: ['Market Strategy', 'Data Analysis', 'Competitive Intelligence'],
-      trustLevel: 'high',
-      conversationHistory: [
-        {
-          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-          messageCount: 9,
-          topic: 'Market Research',
-          sentiment: 'positive'
-        },
-        {
-          date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-          messageCount: 11,
-          topic: 'Analytics Dashboard',
-          sentiment: 'positive'
-        }
-      ],
-      preferences: {
-        preferredTime: 'Evening (6-8 PM)',
-        communicationStyle: 'formal',
-        interests: ['Data Analysis', 'Market Trends', 'Business Intelligence']
       }
     }
   ])
@@ -413,34 +313,19 @@ export const BotManagement = () => {
   ])
 
   const currentBot = bots.find(bot => bot.id === selectedBot)
-  const currentBotConversations = conversations.filter(() => 
-    selectedBot === 'strategic-ai' ? true : false // In real app, filter by bot
-  )
+  const currentBotConversations = conversations.filter(() => selectedBot === 'strategic-ai' ? true : false)
+  const currentBotContacts = contacts.filter(() => selectedBot === 'strategic-ai' ? true : false)
 
-  const currentBotContacts = contacts.filter(() => 
-    selectedBot === 'strategic-ai' ? true : false // In real app, filter by bot
-  )
-
-  const filteredConversations = conversations.filter(conv =>
+  const filteredConversations = currentBotConversations.filter(conv =>
     conv.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conv.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-
-
-  const filteredContacts = contacts.filter(contact =>
+  const filteredContacts = currentBotContacts.filter(contact =>
     contact.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (contact.lastName && contact.lastName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    contact.primaryTopics.some(topic => topic.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
-
-  const filteredBots = bots.filter(bot =>
-    bot.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bot.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bot.personality.toLowerCase().includes(searchTerm.toLowerCase())
+    (contact.lastName && contact.lastName.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   const formatTimeAgo = (date: Date) => {
@@ -455,8 +340,6 @@ export const BotManagement = () => {
     if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
   }
-
-
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -473,303 +356,180 @@ export const BotManagement = () => {
     }
   }
 
-  const handleSendMessage = () => {
-    if (!messageToSend.trim() || !selectedUser) return
-    
-    console.log('Sending message:', messageToSend, 'to user:', selectedUser)
-    setMessageToSend('')
-    setSelectedUser('')
-  }
-
-  const handleBotAction = (action: 'start' | 'stop' | 'restart', botId?: string) => {
-    const targetBot = botId || selectedBot
-    console.log(`Bot action: ${action} for bot:`, targetBot)
-  }
-
   const getPersonalityIcon = (personality: string) => {
     switch (personality) {
-      case 'professional': return <Shield className="text-blue-600" size={16} />
-      case 'friendly': return <MessageCircle className="text-green-600" size={16} />
-      case 'technical': return <Zap className="text-purple-600" size={16} />
-      case 'creative': return <Brain className="text-pink-600" size={16} />
-      default: return <Bot className="text-gray-600" size={16} />
+      case 'professional':
+        return <Crown className="text-blue-600" size={16} />
+      case 'friendly':
+        return <Star className="text-yellow-600" size={16} />
+      case 'technical':
+        return <Brain className="text-purple-600" size={16} />
+      case 'creative':
+        return <Zap className="text-green-600" size={16} />
+      default:
+        return <Bot className="text-gray-600" size={16} />
     }
   }
 
   const getEnvironmentColor = (env: string) => {
     switch (env) {
-      case 'production': return 'bg-green-100 text-green-800'
-      case 'staging': return 'bg-yellow-100 text-yellow-800'
-      case 'development': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'production':
+        return 'bg-green-100 text-green-800'
+      case 'staging':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'development':
+        return 'bg-gray-100 text-gray-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'advisor': return <Crown className="text-yellow-600" size={16} />
-      case 'colleague': return <Users className="text-blue-600" size={16} />
-      case 'stakeholder': return <Target className="text-purple-600" size={16} />
-      case 'expert': return <Award className="text-green-600" size={16} />
-      case 'investor': return <TrendingUp className="text-red-600" size={16} />
-      case 'team': return <User className="text-gray-600" size={16} />
-      default: return <User className="text-gray-600" size={16} />
-    }
+  const handleBotAction = (action: 'start' | 'stop' | 'restart') => {
+    console.log(`Bot action: ${action} for bot:`, selectedBot)
   }
 
-  const getTrustColor = (trust: string) => {
-    switch (trust) {
-      case 'high': return 'text-green-600'
-      case 'medium': return 'text-yellow-600'
-      case 'low': return 'text-red-600'
-      default: return 'text-gray-600'
-    }
+  const handleSendMessage = () => {
+    if (!messageToSend.trim() || !selectedUser) return
+    console.log('Sending message:', messageToSend, 'to user:', selectedUser)
+    setMessageToSend('')
+    setSelectedUser('')
   }
 
-  const getInfluenceLevel = (weight: number) => {
-    if (weight >= 90) return { label: 'Critical', color: 'bg-red-100 text-red-800' }
-    if (weight >= 75) return { label: 'High', color: 'bg-orange-100 text-orange-800' }
-    if (weight >= 50) return { label: 'Medium', color: 'bg-yellow-100 text-yellow-800' }
-    if (weight >= 25) return { label: 'Low', color: 'bg-blue-100 text-blue-800' }
-    return { label: 'Minimal', color: 'bg-gray-100 text-gray-800' }
-  }
-
-  const totalInfluence = contacts.reduce((sum, contact) => sum + contact.influenceWeight, 0)
-  const averageInfluence = totalInfluence / contacts.length
-
-  const navigateToTab = (tab: string, data?: any) => {
-    setActiveTab(tab as any)
-    if (data?.userId) {
-      setSelectedContact(data.userId)
-    }
-  }
-
-  const renderBotSelector = () => {
-    if (!currentBot) return null
+  const renderBotCard = (bot: BotInstance) => {
+    const isSelected = selectedBot === bot.id
     
     return (
-      <div className="bg-blue-50 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 rounded-full p-2">
-              <Bot className="text-blue-600" size={20} />
+      <div
+        key={bot.id}
+        onClick={() => setSelectedBot(bot.id)}
+        className={`cursor-pointer transition-all duration-200 ${
+          isSelected
+            ? 'bg-blue-50 border-2 border-blue-500 shadow-lg transform scale-105'
+            : 'bg-white border-2 border-gray-200 hover:border-gray-300 hover:shadow-md'
+        } rounded-xl p-6`}
+      >
+        <div className="flex flex-col items-center text-center">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+            isSelected ? 'bg-blue-100' : 'bg-gray-100'
+          }`}>
+            <Bot className={`${isSelected ? 'text-blue-600' : 'text-gray-600'}`} size={32} />
+          </div>
+          
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{bot.name}</h3>
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{bot.description}</p>
+          
+          <div className="flex items-center gap-2 mb-3">
+            {getStatusIcon(bot.status)}
+            <span className={`text-sm font-medium ${
+              bot.status === 'running' ? 'text-green-600' : 
+              bot.status === 'stopped' ? 'text-gray-600' : 'text-red-600'
+            }`}>
+              {bot.status}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <Users size={12} />
+              <span>{bot.stats.totalUsers}</span>
             </div>
-            <div>
-              <h4 className="font-medium text-gray-900">Currently Managing: {currentBot.name}</h4>
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <span className="flex items-center gap-1">
-                  {getStatusIcon(currentBot.status)}
-                  {currentBot.status}
-                </span>
-                <span>{currentBot.version}</span>
-                <span>{currentBot.deployment.environment}</span>
-              </div>
+            <div className="flex items-center gap-1">
+              <MessageSquare size={12} />
+              <span>{bot.stats.activeConversations}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Activity size={12} />
+              <span>{bot.stats.uptime}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedBot || ''}
-              onChange={(e) => setSelectedBot(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {bots.map((bot) => (
-                <option key={bot.id} value={bot.id}>
-                  {bot.name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => navigateToTab('bots')}
-              className="flex items-center gap-1 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
-            >
-              <Settings size={14} />
-              Configure
-            </button>
+          
+          <div className="flex items-center gap-2 mt-3">
+            {getPersonalityIcon(bot.personality)}
+            <span className="text-xs text-gray-500 capitalize">{bot.personality}</span>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEnvironmentColor(bot.deployment.environment)}`}>
+              {bot.deployment.environment}
+            </span>
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  const renderQuickStats = () => {
-    if (!currentBot) return null
-    
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div 
-          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-          onClick={() => navigateToTab('bots')}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Bot className="text-blue-600" size={20} />
-            <h5 className="font-medium text-gray-900">Bot Fleet</h5>
-          </div>
-          <div className="text-2xl font-bold text-gray-900">{bots.length}</div>
-          <div className="text-sm text-gray-500">Active bots</div>
-        </div>
-
-        <div 
-          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-          onClick={() => navigateToTab('conversations')}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="text-green-600" size={20} />
-            <h5 className="font-medium text-gray-900">Conversations</h5>
-          </div>
-          <div className="text-2xl font-bold text-gray-900">{currentBotConversations.length}</div>
-          <div className="text-sm text-gray-500">Active chats</div>
-        </div>
-
-        <div 
-          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-          onClick={() => navigateToTab('contacts')}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Scale className="text-purple-600" size={20} />
-            <h5 className="font-medium text-gray-900">Contacts</h5>
-          </div>
-          <div className="text-2xl font-bold text-gray-900">{currentBotContacts.length}</div>
-          <div className="text-sm text-gray-500">Network contacts</div>
-        </div>
-
-        <div 
-          className="bg-white rounded-lg p-4 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-          onClick={() => navigateToTab('controls')}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Settings className="text-gray-600" size={20} />
-            <h5 className="font-medium text-gray-900">Controls</h5>
-          </div>
-          <div className="text-2xl font-bold text-gray-900">{currentBot?.stats.messagesProcessed || 0}</div>
-          <div className="text-sm text-gray-500">Messages processed</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {currentBot && activeTab !== 'bots' && (
-        <>
-          {renderBotSelector()}
-          {renderQuickStats()}
-        </>
-      )}
-
-      {currentBot && activeTab === 'bots' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Fleet Status</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <CheckCircle className="text-green-600" size={16} />
-                  <span className="text-sm font-semibold text-green-600">
-                    {bots.filter(b => b.status === 'running').length} Running
-                  </span>
-                </div>
-              </div>
-              <Bot className="text-blue-600" size={24} />
-            </div>
-            <p className="text-xs text-gray-500 mt-4">{bots.length} total bots</p>
+    <div className="space-y-8">
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Bot Fleet</h2>
+            <p className="text-gray-600 mt-1">Manage your AI workforce - Select a bot to view details</p>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {bots.reduce((sum, bot) => sum + bot.stats.totalUsers, 0)}
-                </p>
-              </div>
-              <Users className="text-green-600" size={24} />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Messages</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {bots.reduce((sum, bot) => sum + bot.stats.messagesProcessed, 0).toLocaleString()}
-                </p>
-              </div>
-              <Hash className="text-orange-600" size={24} />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Avg Response</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">1.1s</p>
-              </div>
-              <BarChart3 className="text-purple-600" size={24} />
-            </div>
-          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus size={16} />
+            Deploy New Bot
+          </button>
         </div>
-      )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {bots.map(renderBotCard)}
+        </div>
+      </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setActiveTab('bots')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'bots'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Bot size={16} />
-                  Bot Fleet
-                  <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
-                    {bots.length}
-                  </span>
+      {currentBot && (
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-100 rounded-full p-3">
+                  <Bot className="text-blue-600" size={24} />
                 </div>
-              </button>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">{currentBot.name}</h3>
+                  <p className="text-gray-600">{currentBot.description}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-sm text-gray-500">Version {currentBot.version}</div>
+                  <div className="flex items-center gap-1">
+                    {getStatusIcon(currentBot.status)}
+                    <span className="text-sm font-medium">{currentBot.status}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex space-x-6 mt-4">
               <button
-                onClick={() => setActiveTab('conversations')}
+                onClick={() => setActiveManagementTab('conversations')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'conversations'
+                  activeManagementTab === 'conversations'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <MessageSquare size={16} />
-                  Conversations
-                  {currentBot && (
-                    <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
-                      {currentBotConversations.length}
-                    </span>
-                  )}
+                  Conversations ({currentBotConversations.length})
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('contacts')}
+                onClick={() => setActiveManagementTab('contacts')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'contacts'
+                  activeManagementTab === 'contacts'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Scale size={16} />
-                  Contacts
-                  {currentBot && (
-                    <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
-                      {currentBotContacts.length}
-                    </span>
-                  )}
+                  <Users size={16} />
+                  Contacts ({currentBotContacts.length})
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('controls')}
+                onClick={() => setActiveManagementTab('controls')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'controls'
+                  activeManagementTab === 'controls'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -779,621 +539,280 @@ export const BotManagement = () => {
                   Controls
                 </div>
               </button>
+              <button
+                onClick={() => setActiveManagementTab('analytics')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  activeManagementTab === 'analytics'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={16} />
+                  Analytics
+                </div>
+              </button>
             </div>
-            
-            {(activeTab === 'conversations' || activeTab === 'contacts' || activeTab === 'bots') && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab}...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+          </div>
+
+          <div className="p-6">
+            {activeManagementTab === 'conversations' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-semibold text-gray-900">Active Conversations</h4>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search conversations..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {filteredConversations.map((conversation) => (
+                    <div key={conversation.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-gray-100 rounded-full p-2">
+                          <User className="text-gray-600" size={20} />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{conversation.firstName}</div>
+                          <div className="text-sm text-gray-600">@{conversation.username}</div>
+                          <div className="text-sm text-gray-500 mt-1">{conversation.lastMessage}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-500">{formatTimeAgo(conversation.lastActivity)}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getStatusIcon(conversation.status)}
+                          <span className="text-sm text-gray-600">{conversation.messageCount} messages</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeManagementTab === 'contacts' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-semibold text-gray-900">Bot Contacts</h4>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search contacts..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {filteredContacts.map((contact) => (
+                    <div key={contact.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="bg-gray-100 rounded-full p-3">
+                            <User className="text-gray-600" size={24} />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{contact.firstName} {contact.lastName}</div>
+                            <div className="text-sm text-gray-600">@{contact.username}</div>
+                            <div className="text-sm text-gray-500">{contact.email}</div>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {contact.primaryTopics.slice(0, 3).map((topic, index) => (
+                                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">Last seen {formatTimeAgo(contact.lastSeen)}</div>
+                          <div className="text-sm text-gray-600 mt-1">{contact.totalMessages} messages</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeManagementTab === 'controls' && (
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold text-gray-900">Bot Controls</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => handleBotAction('start')}
+                    disabled={currentBot.status === 'running'}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Play size={16} />
+                    Start Bot
+                  </button>
+                  <button
+                    onClick={() => handleBotAction('stop')}
+                    disabled={currentBot.status === 'stopped'}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Pause size={16} />
+                    Stop Bot
+                  </button>
+                  <button
+                    onClick={() => handleBotAction('restart')}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <RotateCcw size={16} />
+                    Restart Bot
+                  </button>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h5 className="text-md font-semibold text-gray-900 mb-4">Send Message to User</h5>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Select User</label>
+                      <select
+                        value={selectedUser}
+                        onChange={(e) => setSelectedUser(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Choose a user...</option>
+                        {currentBotContacts.map((contact) => (
+                          <option key={contact.id} value={contact.id}>
+                            {contact.firstName} {contact.lastName} (@{contact.username})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                      <textarea
+                        rows={3}
+                        value={messageToSend}
+                        onChange={(e) => setMessageToSend(e.target.value)}
+                        placeholder="Type your message here..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!messageToSend.trim() || !selectedUser}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Send size={16} />
+                      Send Message
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeManagementTab === 'analytics' && (
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold text-gray-900">Bot Analytics</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-blue-600">Total Users</p>
+                        <p className="text-2xl font-bold text-blue-900">{currentBot.stats.totalUsers}</p>
+                      </div>
+                      <Users className="text-blue-600" size={24} />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-green-600">Active Conversations</p>
+                        <p className="text-2xl font-bold text-green-900">{currentBot.stats.activeConversations}</p>
+                      </div>
+                      <MessageSquare className="text-green-600" size={24} />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-purple-600">Messages Processed</p>
+                        <p className="text-2xl font-bold text-purple-900">{currentBot.stats.messagesProcessed.toLocaleString()}</p>
+                      </div>
+                      <Hash className="text-purple-600" size={24} />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-orange-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-orange-600">Avg Response Time</p>
+                        <p className="text-2xl font-bold text-orange-900">{currentBot.stats.avgResponseTime}</p>
+                      </div>
+                      <Clock className="text-orange-600" size={24} />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h5 className="text-md font-semibold text-gray-900 mb-4">Configuration Details</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Model:</span>
+                          <span className="text-sm font-medium">{currentBot.configuration.model}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Temperature:</span>
+                          <span className="text-sm font-medium">{currentBot.configuration.temperature}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Max Tokens:</span>
+                          <span className="text-sm font-medium">{currentBot.configuration.maxTokens}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Messages/Min:</span>
+                          <span className="text-sm font-medium">{currentBot.configuration.rateLimits.messagesPerMinute}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Environment:</span>
+                          <span className="text-sm font-medium">{currentBot.deployment.environment}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Region:</span>
+                          <span className="text-sm font-medium">{currentBot.deployment.region}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">CPU:</span>
+                          <span className="text-sm font-medium">{currentBot.deployment.resources.cpu}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Memory:</span>
+                          <span className="text-sm font-medium">{currentBot.deployment.resources.memory}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
-
-        <div className="p-6">
-          {activeTab === 'bots' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Bot Fleet Management</h3>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{filteredBots.length} bots deployed</span>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    <Plus size={16} />
-                    Deploy New Bot
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {filteredBots.map((bot) => (
-                  <div key={bot.id} className="border border-gray-200 rounded-lg p-6 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="bg-blue-100 rounded-full p-3">
-                          <Bot className="text-blue-600" size={24} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="text-lg font-semibold text-gray-900">{bot.name}</h4>
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEnvironmentColor(bot.deployment.environment)}`}>
-                              {bot.deployment.environment}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              {getPersonalityIcon(bot.personality)}
-                              <span className="text-sm text-gray-600 capitalize">{bot.personality}</span>
-                            </div>
-                            {getStatusIcon(bot.status)}
-                          </div>
-
-                          <p className="text-sm text-gray-600 mb-3">{bot.description}</p>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-gray-900">{bot.stats.totalUsers}</div>
-                              <div className="text-xs text-gray-500">Users</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-gray-900">{bot.stats.messagesProcessed}</div>
-                              <div className="text-xs text-gray-500">Messages</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-gray-900">{bot.stats.avgResponseTime}</div>
-                              <div className="text-xs text-gray-500">Avg Response</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-gray-900">{(bot.stats.errorRate * 100).toFixed(1)}%</div>
-                              <div className="text-xs text-gray-500">Error Rate</div>
-                            </div>
-                          </div>
-
-                          {expandedBot === bot.id && (
-                            <div className="mt-4 pt-4 border-t border-gray-200">
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div>
-                                  <h5 className="font-medium text-gray-900 mb-3">Configuration</h5>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Model:</span>
-                                      <span className="font-mono text-gray-900">{bot.configuration.model}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Temperature:</span>
-                                      <span className="font-mono text-gray-900">{bot.configuration.temperature}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Max Tokens:</span>
-                                      <span className="font-mono text-gray-900">{bot.configuration.maxTokens}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-600">Features:</span>
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        {bot.configuration.enabledFeatures.map((feature, index) => (
-                                          <span key={index} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                            {feature}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <h5 className="font-medium text-gray-900 mb-3">Deployment</h5>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Region:</span>
-                                      <span className="font-mono text-gray-900">{bot.deployment.region}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">CPU:</span>
-                                      <span className="font-mono text-gray-900">{bot.deployment.resources.cpu}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Memory:</span>
-                                      <span className="font-mono text-gray-900">{bot.deployment.resources.memory}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Storage:</span>
-                                      <span className="font-mono text-gray-900">{bot.deployment.resources.storage}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setExpandedBot(expandedBot === bot.id ? null : bot.id)}
-                          className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                        >
-                          <Settings size={14} />
-                          {expandedBot === bot.id ? 'Hide Config' : 'Configure'}
-                          {expandedBot === bot.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-                        <button
-                          onClick={() => setSelectedBot(bot.id)}
-                          className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                            selectedBot === bot.id 
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {selectedBot === bot.id ? 'Selected' : 'Select'}
-                        </button>
-                        {bot.status === 'running' ? (
-                          <button
-                            onClick={() => handleBotAction('stop', bot.id)}
-                            className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                          >
-                            <Pause size={14} />
-                            Stop
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleBotAction('start', bot.id)}
-                            className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
-                          >
-                            <Play size={14} />
-                            Start
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'conversations' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Conversations - {currentBot?.name}
-                </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => navigateToTab('contacts')}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-                  >
-                    <Scale size={14} />
-                    View Influence Network
-                  </button>
-                  <span className="text-sm text-gray-500">
-                    {filteredConversations.length} active conversations
-                  </span>
-                </div>
-              </div>
-
-              {filteredConversations.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="mx-auto text-gray-400 mb-4" size={48} />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No conversations found</h3>
-                  <p className="text-gray-500">Try adjusting your search terms</p>
-                </div>
-              ) : (
-                filteredConversations.map((conversation) => (
-                  <div key={conversation.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-blue-100 rounded-full p-2">
-                          <User className="text-blue-600" size={16} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-gray-900">{conversation.firstName}</h4>
-                            <span className="text-sm text-gray-500">@{conversation.username}</span>
-                            {getStatusIcon(conversation.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">{conversation.lastMessage}</p>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                            <span>{formatTimeAgo(conversation.lastActivity)}</span>
-                            <span>{conversation.messageCount} messages</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => navigateToTab('contacts', { userId: conversation.userId })}
-                          className="flex items-center gap-1 px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-                        >
-                          <Scale size={14} />
-                          Influence
-                        </button>
-                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                          View
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'contacts' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Strategic Contact Network</h3>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setShowInfluencePanel(!showInfluencePanel)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                      showInfluencePanel 
-                        ? 'bg-purple-100 text-purple-700' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    <Scale size={16} />
-                    Influence Panel
-                  </button>
-                  <div className="text-sm text-gray-500">
-                    {filteredContacts.length} contacts • Avg influence: {Math.round(averageInfluence)}
-                  </div>
-                </div>
-              </div>
-
-              {showInfluencePanel && (
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 mb-6">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Decision Influence Analytics</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="bg-white rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Scale className="text-purple-600" size={20} />
-                        <h5 className="font-medium text-gray-900">Total Influence</h5>
-                      </div>
-                      <div className="text-2xl font-bold text-purple-600">{totalInfluence}</div>
-                      <div className="text-sm text-gray-500">Combined weight across network</div>
-                    </div>
-
-                    <div className="bg-white rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Crown className="text-yellow-600" size={20} />
-                        <h5 className="font-medium text-gray-900">Top Influencer</h5>
-                      </div>
-                      <div className="text-lg font-bold text-gray-900">
-                        {contacts.reduce((max, contact) => contact.influenceWeight > max.influenceWeight ? contact : max).firstName}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Weight: {contacts.reduce((max, contact) => contact.influenceWeight > max.influenceWeight ? contact : max).influenceWeight}
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BarChart3 className="text-blue-600" size={20} />
-                        <h5 className="font-medium text-gray-900">Decision Areas</h5>
-                      </div>
-                      <div className="text-lg font-bold text-gray-900">
-                        {[...new Set(contacts.flatMap(c => c.decisionAreas))].length}
-                      </div>
-                      <div className="text-sm text-gray-500">Covered domains</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 mb-3">Influence Distribution</h5>
-                    <div className="space-y-2">
-                      {contacts.map((contact) => (
-                          <div key={contact.id} className="flex items-center gap-3">
-                            <div className="w-24 text-sm text-gray-600 truncate">
-                              {contact.firstName}
-                            </div>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2 relative">
-                              <div 
-                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${(contact.influenceWeight / 100) * 100}%` }}
-                              />
-                            </div>
-                            <div className="w-12 text-sm font-medium text-gray-900">
-                              {contact.influenceWeight}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {filteredContacts.length === 0 ? (
-                <div className="text-center py-12">
-                  <Phone className="mx-auto text-gray-400 mb-4" size={48} />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No contacts found</h3>
-                  <p className="text-gray-500">Try adjusting your search terms</p>
-                </div>
-              ) : (
-                filteredContacts
-                  .sort((a, b) => b.influenceWeight - a.influenceWeight)
-                  .map((contact) => {
-                    const influenceLevel = getInfluenceLevel(contact.influenceWeight)
-                    return (
-                      <div key={contact.id} className="border border-gray-200 rounded-lg p-6 hover:bg-gray-50">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-4 flex-1">
-                            <div className="bg-purple-100 rounded-full p-3 relative">
-                              <User className="text-purple-600" size={20} />
-                              <div className="absolute -top-1 -right-1 bg-white rounded-full p-1 border">
-                                {getRoleIcon(contact.role)}
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h4 className="text-lg font-semibold text-gray-900">
-                                  {contact.firstName} {contact.lastName}
-                                </h4>
-                                <span className="text-sm text-gray-500">@{contact.username}</span>
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${influenceLevel.color}`}>
-                                  {influenceLevel.label} Influence
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  <Scale className="text-purple-600" size={14} />
-                                  <span className="text-sm font-medium text-purple-600">{contact.influenceWeight}</span>
-                                </div>
-                                <div className={`flex items-center gap-1 ${getTrustColor(contact.trustLevel)}`}>
-                                  <Star size={14} />
-                                  <span className="text-sm capitalize">{contact.trustLevel}</span>
-                                </div>
-                                {contact.isActive ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Active
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                    Inactive
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                                <div className="space-y-1">
-                                  {contact.email && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                      <Mail size={14} />
-                                      {contact.email}
-                                    </div>
-                                  )}
-                                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Award size={14} />
-                                    <span className="capitalize">{contact.role}</span>
-                                  </div>
-                                  {contact.location && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                      <MapPin size={14} />
-                                      {contact.location}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <MessageSquare size={14} />
-                                    {contact.totalMessages} messages
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <TrendingUp size={14} />
-                                    Interaction: {contact.interactionScore}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Activity size={14} />
-                                    Last seen {formatTimeAgo(contact.lastSeen)}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mb-3">
-                                <div className="text-sm text-gray-600 mb-1">Decision Areas:</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {contact.decisionAreas.map((area, index) => (
-                                    <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                      {area}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="mb-3">
-                                <div className="text-sm text-gray-600 mb-1">Primary Topics:</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {contact.primaryTopics.map((topic, index) => (
-                                    <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      {topic}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {selectedContact === contact.id && (
-                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div>
-                                      <h5 className="font-medium text-gray-900 mb-3">Recent Conversations</h5>
-                                      <div className="space-y-3">
-                                        {contact.conversationHistory.map((conv, index) => (
-                                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                              <div className="font-medium text-sm text-gray-900">{conv.topic}</div>
-                                              <div className="text-xs text-gray-500">
-                                                {conv.messageCount} messages • {formatTimeAgo(conv.date)}
-                                              </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              <span className={`w-2 h-2 rounded-full ${
-                                                conv.sentiment === 'positive' ? 'bg-green-500' :
-                                                conv.sentiment === 'negative' ? 'bg-red-500' :
-                                                'bg-yellow-500'
-                                              }`}></span>
-                                              <span className="text-xs text-gray-500 capitalize">{conv.sentiment}</span>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    <div>
-                                      <h5 className="font-medium text-gray-900 mb-3">Influence Configuration</h5>
-                                      <div className="space-y-3">
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                          <div className="text-sm font-medium text-gray-900 mb-2">Influence Weight</div>
-                                          <div className="flex items-center gap-3">
-                                            <input
-                                              type="range"
-                                              min="0"
-                                              max="100"
-                                              value={contact.influenceWeight}
-                                              className="flex-1"
-                                              disabled={editingInfluence !== contact.id}
-                                            />
-                                            <span className="w-12 text-sm font-medium">{contact.influenceWeight}</span>
-                                            <button
-                                              onClick={() => setEditingInfluence(editingInfluence === contact.id ? null : contact.id)}
-                                              className={`px-2 py-1 text-xs rounded ${
-                                                editingInfluence === contact.id
-                                                  ? 'bg-green-100 text-green-700'
-                                                  : 'bg-blue-100 text-blue-700'
-                                              }`}
-                                            >
-                                              {editingInfluence === contact.id ? 'Save' : 'Edit'}
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                          <div className="text-sm font-medium text-gray-900">Trust Level</div>
-                                          <div className={`text-sm ${getTrustColor(contact.trustLevel)} capitalize`}>
-                                            {contact.trustLevel}
-                                          </div>
-                                        </div>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                          <div className="text-sm font-medium text-gray-900">Communication Style</div>
-                                          <div className="text-sm text-gray-600 capitalize">{contact.preferences.communicationStyle}</div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setSelectedContact(selectedContact === contact.id ? null : contact.id)}
-                              className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                            >
-                              <Eye size={14} />
-                              {selectedContact === contact.id ? 'Hide Details' : 'View Details'}
-                              {selectedContact === contact.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </button>
-                            <button className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors">
-                              <MessageCircle size={14} />
-                              Message
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
-              )}
-            </div>
-          )}
-
-          {activeTab === 'controls' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Bot Controls - {currentBot?.name}
-                </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => navigateToTab('bots')}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                  >
-                    <Settings size={14} />
-                    Advanced Config
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => handleBotAction('start')}
-                  disabled={currentBot?.status === 'running'}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Play size={16} />
-                  Start Bot
-                </button>
-                <button
-                  onClick={() => handleBotAction('stop')}
-                  disabled={currentBot?.status === 'stopped'}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Pause size={16} />
-                  Stop Bot
-                </button>
-                <button
-                  onClick={() => handleBotAction('restart')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <RotateCcw size={16} />
-                  Restart Bot
-                </button>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Send Message to User</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label htmlFor="user-select" className="block text-sm font-medium text-gray-700 mb-1">
-                      Select User
-                    </label>
-                    <select
-                      id="user-select"
-                      value={selectedUser}
-                      onChange={(e) => setSelectedUser(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Choose a user...</option>
-                      {currentBotContacts.map((contact) => (
-                        <option key={contact.id} value={contact.id}>
-                          {contact.firstName} {contact.lastName} (@{contact.username})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="message-input" className="block text-sm font-medium text-gray-700 mb-1">
-                      Message
-                    </label>
-                    <textarea
-                      id="message-input"
-                      rows={3}
-                      value={messageToSend}
-                      onChange={(e) => setMessageToSend(e.target.value)}
-                      placeholder="Type your message here..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!messageToSend.trim() || !selectedUser}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Send size={16} />
-                    Send Message
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   )
 } 

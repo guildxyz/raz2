@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
 import { 
-  Server, 
   Database, 
   Bot, 
   BarChart3, 
@@ -10,8 +10,6 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Users,
-  MessageSquare,
   Activity
 } from 'lucide-react'
 
@@ -23,12 +21,24 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { ConfigurationManagement } from './components/ConfigurationManagement'
 import { LogsMonitoring } from './components/LogsMonitoring'
 import { useIdeaStore } from './hooks/useIdeaStore'
-import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus } from './types'
+import type { Idea, CreateIdeaInput, UpdateIdeaInput, IdeaStatus, Subtask, SubtaskStatus } from './types'
 
 type TabType = 'overview' | 'ideas' | 'bot' | 'database' | 'analytics' | 'config' | 'logs'
 
 export default function App() {
-  const { ideas, loading, error, createIdea, updateIdea, deleteIdea, refreshIdeas } = useIdeaStore()
+  const { 
+    ideas, 
+    loading, 
+    error, 
+    createIdea, 
+    updateIdea, 
+    deleteIdea, 
+    refreshIdeas,
+    updateSubtask,
+    createSubtask,
+    deleteSubtask
+  } = useIdeaStore()
+  
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showForm, setShowForm] = useState(false)
   const [editingIdea, setEditingIdea] = useState<Idea | undefined>()
@@ -44,7 +54,7 @@ export default function App() {
   }, [refreshIdeas])
 
   const handleCreateIdea = async (data: CreateIdeaInput) => {
-    await createIdea(data)
+    await createIdea({ ...data, generateSubtasks: true })
     setShowForm(false)
   }
 
@@ -53,7 +63,12 @@ export default function App() {
     
     const updateData: UpdateIdeaInput = {
       id: editingIdea.id,
-      ...data,
+      title: data.title,
+      content: data.content,
+      category: data.category,
+      priority: data.priority,
+      tags: data.tags,
+      regenerateSubtasks: true
     }
     
     await updateIdea(updateData)
@@ -65,13 +80,27 @@ export default function App() {
   }
 
   const handleDeleteIdea = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this idea?')) {
+    if (window.confirm('Are you sure you want to delete this idea and all its subtasks?')) {
       await deleteIdea(id)
     }
   }
 
   const handleUpdateStatus = async (id: string, status: IdeaStatus) => {
     await updateIdea({ id, status })
+  }
+
+  const handleUpdateSubtask = async (ideaId: string, subtaskId: string, updates: Partial<Subtask>) => {
+    await updateSubtask(ideaId, subtaskId, updates)
+  }
+
+  const handleCreateSubtask = async (ideaId: string, subtask: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) => {
+    await createSubtask(ideaId, subtask)
+  }
+
+  const handleDeleteSubtask = async (ideaId: string, subtaskId: string) => {
+    if (window.confirm('Are you sure you want to delete this subtask?')) {
+      await deleteSubtask(ideaId, subtaskId)
+    }
   }
 
   const handleFormCancel = () => {
@@ -126,250 +155,224 @@ export default function App() {
     }
   }
 
-  const renderSystemOverview = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Telegram Bot</p>
-              <div className="flex items-center gap-2 mt-1">
-                {getStatusIcon(systemStatus.bot.status)}
-                <span className={`text-sm font-semibold ${getStatusColor(systemStatus.bot.status)}`}>
-                  {systemStatus.bot.status}
-                </span>
-              </div>
-            </div>
-            <Bot className="text-blue-600" size={24} />
-          </div>
-          <div className="mt-4 space-y-1">
-            <p className="text-xs text-gray-500">Uptime: {systemStatus.bot.uptime}</p>
-            <p className="text-xs text-gray-500">Last Activity: {systemStatus.bot.lastActivity}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Database</p>
-              <div className="flex items-center gap-2 mt-1">
-                {getStatusIcon(systemStatus.database.status)}
-                <span className={`text-sm font-semibold ${getStatusColor(systemStatus.database.status)}`}>
-                  {systemStatus.database.status}
-                </span>
-              </div>
-            </div>
-            <Database className="text-green-600" size={24} />
-          </div>
-          <div className="mt-4 space-y-1">
-            <p className="text-xs text-gray-500">Latency: {systemStatus.database.latency}</p>
-            <p className="text-xs text-gray-500">Connections: {systemStatus.database.connections}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Claude AI</p>
-              <div className="flex items-center gap-2 mt-1">
-                {getStatusIcon(systemStatus.claude.status)}
-                <span className={`text-sm font-semibold ${getStatusColor(systemStatus.claude.status)}`}>
-                  {systemStatus.claude.status}
-                </span>
-              </div>
-            </div>
-            <MessageSquare className="text-purple-600" size={24} />
-          </div>
-          <div className="mt-4 space-y-1">
-            <p className="text-xs text-gray-500">Tokens Used: {systemStatus.claude.tokensUsed.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">Requests Today: {systemStatus.claude.requestsToday}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Web Server</p>
-              <div className="flex items-center gap-2 mt-1">
-                {getStatusIcon(systemStatus.webServer.status)}
-                <span className={`text-sm font-semibold ${getStatusColor(systemStatus.webServer.status)}`}>
-                  {systemStatus.webServer.status}
-                </span>
-              </div>
-            </div>
-            <Server className="text-orange-600" size={24} />
-          </div>
-          <div className="mt-4 space-y-1">
-            <p className="text-xs text-gray-500">Port: {systemStatus.webServer.port}</p>
-            <p className="text-xs text-gray-500">Requests: {systemStatus.webServer.requests.toLocaleString()}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <Users className="text-blue-600" size={16} />
-              <div>
-                <p className="text-sm font-medium">New conversation started</p>
-                <p className="text-xs text-gray-500">User @razvan - 5 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <Lightbulb className="text-yellow-600" size={16} />
-              <div>
-                <p className="text-sm font-medium">Strategic idea captured</p>
-                <p className="text-xs text-gray-500">Enterprise Multi-Guild Strategy - 12 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <Database className="text-green-600" size={16} />
-              <div>
-                <p className="text-sm font-medium">Database backup completed</p>
-                <p className="text-xs text-gray-500">Auto backup successful - 1 hour ago</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Total Ideas</span>
-              <span className="text-sm font-semibold">{ideas.length}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Active Conversations</span>
-              <span className="text-sm font-semibold">3</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Messages Today</span>
-              <span className="text-sm font-semibold">47</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Vector Embeddings</span>
-              <span className="text-sm font-semibold">1,247</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Uptime</span>
-              <span className="text-sm font-semibold">99.8%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return renderSystemOverview()
-      case 'ideas':
-        return (
-          <IdeaList
-            ideas={ideas}
-            loading={loading}
-            onEdit={handleEditIdea}
-            onDelete={handleDeleteIdea}
-            onUpdateStatus={handleUpdateStatus}
-            onCreate={handleCreateNew}
-          />
-        )
-      case 'bot':
-        return (
-          <BotManagement />
-        )
-      case 'database':
-        return <DatabaseManagement />
-      case 'analytics':
-        return <AnalyticsDashboard />
-      case 'config':
-        return <ConfigurationManagement />
-      case 'logs':
-        return <LogsMonitoring />
-      default:
-        return null
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg">
-                <Server className="text-white" size={24} />
-              </div>
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center">
+              <Lightbulb className="text-blue-600 mr-3" size={32} />
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Raz2 Management</h1>
-                <p className="text-sm text-gray-500">Strategic Intelligence System Control Panel</p>
+                <h1 className="text-2xl font-bold text-gray-900">Strategic Intelligence System</h1>
+                <p className="text-sm text-gray-600">Guild.xyz CEO Dashboard with AI-Powered Kanban</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-500">
-                {activeTab === 'ideas' && `${ideas.length} ${ideas.length === 1 ? 'idea' : 'ideas'}`}
-              </div>
-              <div className="flex items-center gap-2">
-                {getStatusIcon('running')}
-                <span className="text-sm text-green-600 font-medium">System Healthy</span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm">
+                {getStatusIcon(systemStatus.bot.status)}
+                <span className={getStatusColor(systemStatus.bot.status)}>
+                  Bot {systemStatus.bot.status}
+                </span>
               </div>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              {tabs.map(({ id, label, icon: Icon }) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                    activeTab === id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   <Icon size={16} />
-                  {tab.label}
+                  {label}
+                  {id === 'ideas' && ideas.length > 0 && (
+                    <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                      {ideas.length}
+                    </span>
+                  )}
                 </button>
-              )
-            })}
+              ))}
+            </nav>
           </div>
-        </div>
-      </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="text-red-500" size={20} />
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="text-sm text-red-700">{error}</p>
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Lightbulb className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Strategic Ideas</dt>
+                          <dd className="text-lg font-medium text-gray-900">{ideas.length}</dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 px-5 py-3">
+                    <div className="text-sm">
+                      <span className="text-green-600 font-medium">
+                        {ideas.filter(i => i.status === 'completed').length} completed
+                      </span>
+                      <span className="text-gray-500"> • </span>
+                      <span className="text-yellow-600 font-medium">
+                        {ideas.filter(i => i.status === 'in_progress').length} in progress
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Activity className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Active Tasks</dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {ideas.reduce((total, idea) => total + idea.subtasks.length, 0)}
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 px-5 py-3">
+                    <div className="text-sm">
+                      <span className="text-green-600 font-medium">
+                        {ideas.reduce((total, idea) => total + idea.subtasks.filter(s => s.status === 'done').length, 0)} done
+                      </span>
+                      <span className="text-gray-500"> • </span>
+                      <span className="text-blue-600 font-medium">
+                        {ideas.reduce((total, idea) => total + idea.subtasks.filter(s => s.status === 'in_progress').length, 0)} active
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Bot className={`h-6 w-6 ${getStatusColor(systemStatus.bot.status)}`} />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Bot Status</dt>
+                          <dd className={`text-lg font-medium ${getStatusColor(systemStatus.bot.status)} capitalize`}>
+                            {systemStatus.bot.status}
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 px-5 py-3">
+                    <div className="text-sm">
+                      <span className="text-gray-600">Uptime: {systemStatus.bot.uptime}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Clock className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">Est. Hours</dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {ideas.reduce((total, idea) => 
+                              total + idea.subtasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0), 0
+                            )}h
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 px-5 py-3">
+                    <div className="text-sm">
+                      <span className="text-gray-600">Across all active ideas</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+                <div className="space-y-3">
+                  {ideas.slice(0, 5).map((idea) => (
+                    <div key={idea.id} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Lightbulb className="text-blue-600 mr-3" size={16} />
+                        <span className="text-sm text-gray-900">{idea.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">
+                          {idea.subtasks.filter(s => s.status === 'done').length}/{idea.subtasks.length} tasks
+                        </span>
+                                                 <span className="text-xs text-gray-400">
+                           {format(new Date(idea.updatedAt), 'MMM d')}
+                         </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {renderTabContent()}
-      </main>
+          {activeTab === 'ideas' && (
+            <IdeaList
+              ideas={ideas}
+              loading={loading}
+              onEdit={handleEditIdea}
+              onDelete={handleDeleteIdea}
+              onUpdateStatus={handleUpdateStatus}
+              onCreate={handleCreateNew}
+              onUpdateSubtask={handleUpdateSubtask}
+              onCreateSubtask={handleCreateSubtask}
+              onDeleteSubtask={handleDeleteSubtask}
+            />
+          )}
 
-      {(showForm || editingIdea) && (
-        <IdeaForm
-          idea={editingIdea}
-          onSubmit={editingIdea ? handleUpdateIdea : handleCreateIdea}
-          onCancel={handleFormCancel}
-          loading={loading}
-        />
-      )}
+          {activeTab === 'bot' && <BotManagement />}
+          {activeTab === 'database' && <DatabaseManagement />}
+          {activeTab === 'analytics' && <AnalyticsDashboard />}
+          {activeTab === 'config' && <ConfigurationManagement />}
+          {activeTab === 'logs' && <LogsMonitoring />}
+
+          {(showForm || editingIdea) && (
+            <IdeaForm
+              idea={editingIdea}
+              onSubmit={editingIdea ? handleUpdateIdea : handleCreateIdea}
+              onCancel={handleFormCancel}
+              loading={loading}
+            />
+          )}
+
+          {error && (
+            <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

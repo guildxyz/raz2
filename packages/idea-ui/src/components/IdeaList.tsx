@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Search, Filter, Plus } from 'lucide-react'
 import { IdeaCard } from './IdeaCard'
-import type { Idea, IdeaCategory, IdeaPriority, IdeaStatus } from '../types'
+import type { Idea, IdeaCategory, IdeaPriority, IdeaStatus, Subtask, SubtaskStatus } from '../types'
 
 interface IdeaListProps {
   ideas: Idea[]
@@ -10,6 +10,9 @@ interface IdeaListProps {
   onDelete: (id: string) => void
   onUpdateStatus: (id: string, status: IdeaStatus) => void
   onCreate: () => void
+  onUpdateSubtask?: (ideaId: string, subtaskId: string, updates: Partial<Subtask>) => void
+  onCreateSubtask?: (ideaId: string, subtask: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onDeleteSubtask?: (ideaId: string, subtaskId: string) => void
 }
 
 export const IdeaList = ({ 
@@ -18,7 +21,10 @@ export const IdeaList = ({
   onEdit, 
   onDelete, 
   onUpdateStatus, 
-  onCreate 
+  onCreate,
+  onUpdateSubtask,
+  onCreateSubtask,
+  onDeleteSubtask
 }: IdeaListProps) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<IdeaCategory | 'all'>('all')
@@ -31,7 +37,11 @@ export const IdeaList = ({
       const matchesSearch = 
         idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         idea.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        idea.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+        idea.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        idea.subtasks.some(subtask => 
+          subtask.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (subtask.description && subtask.description.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
 
       const matchesCategory = categoryFilter === 'all' || idea.category === categoryFilter
       const matchesPriority = priorityFilter === 'all' || idea.priority === priorityFilter
@@ -64,23 +74,13 @@ export const IdeaList = ({
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          <h3 className="text-blue-800 font-medium">Zawiasa's Strategic Ideas</h3>
-        </div>
-        <p className="text-blue-600 text-sm mt-1">
-          Showing ideas from Telegram user "raz" (Zawiasa)
-        </p>
-      </div>
-
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex items-center gap-4 flex-1">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Search ideas..."
+              placeholder="Search ideas and tasks..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -192,7 +192,7 @@ export const IdeaList = ({
               <>
                 <div className="text-6xl mb-4">💡</div>
                 <h3 className="text-lg font-medium mb-2">No ideas yet</h3>
-                <p>Create your first idea to get started!</p>
+                <p>Create your first strategic idea with AI-generated subtasks!</p>
               </>
             ) : (
               <>
@@ -221,6 +221,9 @@ export const IdeaList = ({
               onEdit={onEdit}
               onDelete={onDelete}
               onUpdateStatus={onUpdateStatus}
+              onUpdateSubtask={onUpdateSubtask}
+              onCreateSubtask={onCreateSubtask}
+              onDeleteSubtask={onDeleteSubtask}
             />
           ))}
         </div>

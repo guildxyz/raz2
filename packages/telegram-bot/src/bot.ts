@@ -696,11 +696,16 @@ Use /forget <ID> to delete an idea`);
         messageWithContext = `${strategicContext}\n\nCurrent message: ${text}`;
       }
 
+      // Determine if this message should have access to strategic tools
+      const isStrategicMessage = this.isMessageStrategic(text);
+
       this.logger.info('Sending message to Claude API', {
         chatId,
         messageLength: text.length,
         contextLength: strategicContext.length,
-        historyLength: conversation.messages.length
+        historyLength: conversation.messages.length,
+        isStrategicMessage,
+        toolsEnabled: isStrategicMessage
       });
 
       // Add timeout protection for Claude API calls
@@ -709,7 +714,8 @@ Use /forget <ID> to delete an idea`);
           messageWithContext, 
           conversation.messages,
           conversation.userId,
-          chatId
+          chatId,
+          isStrategicMessage // Only enable tools for strategic messages
         ),
         new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Claude API timeout')), 30000)
@@ -729,7 +735,23 @@ Use /forget <ID> to delete an idea`);
 
       // Auto-capture strategic insights with timeout protection
       if (this.ideaService.isIdeaEnabled() && conversation.userId && text.length > 20) {
-        const isStrategic = /\b(strategy|strategic|business|market|product|sales|revenue|growth|competition|partnership|client|customer|guild|platform|feature|roadmap|planning|decision|analysis)\b/i.test(text);
+        // Much more conservative strategic detection - require substantial content and specific keywords
+        const hasStrategicKeywords = /\b(strategy|strategic|business model|market analysis|product strategy|sales strategy|revenue|growth strategy|competition analysis|partnership|roadmap|planning|decision making|client strategy|competitive advantage|business development)\b/i.test(text);
+        const hasBusinessContext = /\b(guild|platform|users|clients|customers|revenue|pricing|features|product|enterprise|b2b|saas)\b/i.test(text);
+        const isSubstantialContent = text.length > 50 && text.split(' ').length > 8;
+        
+        const isStrategic = hasStrategicKeywords && (hasBusinessContext || isSubstantialContent);
+        
+        this.logger.debug('Strategic content evaluation', {
+          chatId,
+          userId: conversation.userId,
+          textLength: text.length,
+          hasStrategicKeywords,
+          hasBusinessContext,
+          isSubstantialContent,
+          isStrategic,
+          text: text.substring(0, 100)
+        });
         
         if (isStrategic) {
           try {
@@ -791,6 +813,26 @@ Use /forget <ID> to delete an idea`);
       
       await this.sendMessage(chatId, errorMessage);
     }
+  }
+
+  private isMessageStrategic(text: string): boolean {
+    // Simple responses should not trigger tools
+    const casualResponses = /^\s*(ok|okay|cool|nice|thanks|thank you|yes|no|sure|great|awesome|lol|haha|👍|👌|🙂|😊|😄)\s*$/i;
+    if (casualResponses.test(text)) {
+      return false;
+    }
+
+    // Very short messages are likely casual
+    if (text.length < 15 || text.split(' ').length < 3) {
+      return false;
+    }
+
+    // Check for strategic keywords or substantial business content
+    const hasStrategicKeywords = /\b(strategy|strategic|business|market|product|sales|revenue|growth|competition|partnership|client|customer|guild|platform|feature|roadmap|planning|decision|analysis|idea|proposal|suggest|recommend|think|consider|should|could|would|how about|what if)\b/i.test(text);
+    const hasQuestions = /\?/.test(text);
+    const isSubstantial = text.length > 30;
+
+    return hasStrategicKeywords || hasQuestions || isSubstantial;
   }
 
   private async handleToolsCommand(chatId: number): Promise<void> {
