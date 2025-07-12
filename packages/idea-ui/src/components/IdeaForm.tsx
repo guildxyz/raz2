@@ -61,7 +61,7 @@ export const IdeaForm = ({ idea, onSubmit, onCancel, loading }: IdeaFormProps) =
       category: formData.category,
       priority: formData.priority,
       tags: formData.tags,
-      userId: 'default-user',
+      userId: 'raz',
     }
 
     await onSubmit(submitData)

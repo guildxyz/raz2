@@ -1,4 +1,4 @@
-import { IdeaStore, type Idea, type IdeaSearchResult, type CreateIdeaInput, type Reminder } from '@raz2/idea-store'
+import { IdeaStore, type Idea, type IdeaSearchResult, type CreateIdeaInput, type UpdateIdeaInput, type Reminder } from '@raz2/idea-store'
 import { createLogger } from '@raz2/shared'
 import { ClaudeClient } from '@raz2/claude-api'
 
@@ -416,10 +416,7 @@ Format your response as JSON:
 
   async getUserIdeas(userId: string, limit: number = 20): Promise<Idea[]> {
     if (!this.isEnabled || !this.ideaStore) {
-      this.logger.debug('Get user ideas skipped - service disabled or store not available', {
-        isEnabled: this.isEnabled,
-        hasStore: !!this.ideaStore
-      })
+      this.logger.warn('Cannot get user ideas - service disabled or store is null')
       return []
     }
 
@@ -428,27 +425,77 @@ Format your response as JSON:
       
       const ideas = await this.ideaStore.listIdeas({ userId }, limit)
       
-      this.logger.info('Retrieved user ideas', {
+      this.logger.info('Retrieved user strategic ideas', {
         userId,
-        count: ideas.length
+        count: ideas.length,
+        limit
       })
-
+      
       return ideas
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const errorStack = error instanceof Error ? error.stack : undefined
-      
-      this.logger.error('Failed to get user ideas', {
-        error: {
-          message: errorMessage,
-          stack: errorStack,
-          name: error instanceof Error ? error.name : 'Unknown'
-        },
+      this.logger.error('Failed to get user strategic ideas', {
+        error: error instanceof Error ? error : new Error(String(error)),
         userId,
-        isEnabled: this.isEnabled,
-        isInitialized: this.isInitialized
+        limit
       })
       return []
+    }
+  }
+
+  async createIdea(input: CreateIdeaInput): Promise<Idea | null> {
+    if (!this.isEnabled || !this.ideaStore) {
+      this.logger.warn('Cannot create idea - service disabled or store is null')
+      return null
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const idea = await this.ideaStore.createIdea(input)
+      
+      this.logger.info('Created idea via API', {
+        ideaId: idea.id,
+        title: idea.title,
+        userId: idea.userId
+      })
+      
+      return idea
+    } catch (error) {
+      this.logger.error('Failed to create idea via API', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        title: input.title,
+        userId: input.userId
+      })
+      return null
+    }
+  }
+
+  async updateIdea(input: UpdateIdeaInput): Promise<Idea | null> {
+    if (!this.isEnabled || !this.ideaStore) {
+      this.logger.warn('Cannot update idea - service disabled or store is null')
+      return null
+    }
+
+    try {
+      await this.ensureInitialized()
+      
+      const idea = await this.ideaStore.updateIdea(input)
+      
+      if (idea) {
+        this.logger.info('Updated idea via API', {
+          ideaId: idea.id,
+          title: idea.title,
+          userId: idea.userId
+        })
+      }
+      
+      return idea
+    } catch (error) {
+      this.logger.error('Failed to update idea via API', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        ideaId: input.id
+      })
+      return null
     }
   }
 

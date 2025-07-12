@@ -63,6 +63,56 @@ export class WebServer {
       }
     })
 
+    this.app.post('/api/ideas', async (req: Request, res: Response) => {
+      try {
+        const { title, content, category, priority, tags, userId } = req.body
+        
+        if (!title || !content || !userId) {
+          return res.status(400).json({ error: 'title, content, and userId are required' })
+        }
+        
+        const idea = await this.config.ideaService.createIdea({
+          title,
+          content,
+          category,
+          priority,
+          tags,
+          userId
+        })
+        
+        res.status(201).json(idea)
+      } catch (error) {
+        this.logger.error('Error creating idea:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to create strategic idea' })
+      }
+    })
+
+    this.app.patch('/api/ideas/:id', async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params
+        const { title, content, category, priority, status, tags } = req.body
+        
+        const idea = await this.config.ideaService.updateIdea({
+          id,
+          title,
+          content,
+          category,
+          priority,
+          status,
+          tags
+        })
+        
+        if (idea) {
+          res.json(idea)
+        } else {
+          res.status(404).json({ error: 'Strategic idea not found' })
+        }
+      } catch (error) {
+        this.logger.error('Error updating idea:', { error: error instanceof Error ? error : new Error(String(error)) })
+        res.status(500).json({ error: 'Failed to update strategic idea' })
+      }
+    })
+
     this.app.delete('/api/ideas/:id', async (req: Request, res: Response) => {
       try {
         const { id } = req.params

@@ -15,6 +15,9 @@ export class TelegramBotService {
   private webServer?: WebServer;
   private logger = createLogger('TelegramBot');
   private conversations = new Map<number, ConversationState>();
+  private botUsername?: string;
+  private botId?: number;
+  private botMessageIds = new Set<string>();
 
   constructor(private config: BotConfig) {
     this.logger.info('Initializing TelegramBotService', {
@@ -116,7 +119,8 @@ export class TelegramBotService {
     try {
       this.logger.info('Starting message processing', {
         chatId: msg.chat.id,
-        messageId: msg.message_id
+        messageId: msg.message_id,
+        chatType: msg.chat.type
       });
 
       const processed = this.processMessage(msg);
@@ -129,7 +133,10 @@ export class TelegramBotService {
         textLength: processed.text.length,
         originalText: msg.text,
         sanitizedText: processed.text,
-        messageType: processed.messageType
+        messageType: processed.messageType,
+        isGroupChat: processed.isGroupChat,
+        isReplyToBotMessage: processed.isReplyToBotMessage,
+        mentionsBot: processed.mentionsBot
       });
 
       if (!processed.isValid) {
@@ -139,6 +146,27 @@ export class TelegramBotService {
           await this.sendMessage(processed.chatId, 'Please send a text message');
         }
         return;
+      }
+
+      // Group chat behavior: only respond if mentioned, replied to, or it's a command
+      if (processed.isGroupChat && !processed.command?.command) {
+        const shouldRespond = processed.isReplyToBotMessage || processed.mentionsBot;
+        
+        this.logger.info('Group chat message evaluation', {
+          chatId: processed.chatId,
+          shouldRespond,
+          isReplyToBotMessage: processed.isReplyToBotMessage,
+          mentionsBot: processed.mentionsBot,
+          hasCommand: !!processed.command?.command
+        });
+        
+        if (!shouldRespond) {
+          this.logger.info('Ignoring group message - bot not mentioned or replied to', {
+            chatId: processed.chatId,
+            messageId: msg.message_id
+          });
+          return;
+        }
       }
 
       const conversation = this.getOrCreateConversation(
@@ -159,7 +187,8 @@ export class TelegramBotService {
       this.logger.info('Routing to chat message handler', {
         chatId: processed.chatId,
         messageLength: processed.text.length,
-        conversationLength: conversation.messages.length
+        conversationLength: conversation.messages.length,
+        isGroupChat: processed.isGroupChat
       });
       await this.handleChatMessage(processed, conversation);
     } catch (error) {
@@ -193,7 +222,20 @@ export class TelegramBotService {
     
     const command = parseCommand(sanitizedText);
     
-    // Message is valid if it has text content or is a supported non-text type
+    // Determine if this is a group chat
+    const isGroupChat = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+    
+    // Check if this is a reply to a bot message
+    const isReplyToBotMessage = !!(
+      msg.reply_to_message && 
+      this.botId && 
+      msg.reply_to_message.from?.id === this.botId
+    );
+    
+    // Check if the bot is mentioned
+    const mentionsBot = this.isBotMentioned(text, msg.entities);
+    
+    // Message is valid if it has text content
     const isValid = messageType === 'text' && sanitizedText.length > 0;
     
     this.logger.debug('Processing message', {
@@ -202,7 +244,10 @@ export class TelegramBotService {
       hasCommand: !!command.command,
       command: command.command,
       messageType,
-      isValid
+      isValid,
+      isGroupChat,
+      isReplyToBotMessage,
+      mentionsBot
     });
     
     return {
@@ -211,9 +256,36 @@ export class TelegramBotService {
       command,
       isValid,
       messageType,
+      isGroupChat,
+      isReplyToBotMessage,
+      mentionsBot,
+      originalMessage: msg,
       userId: msg.from?.id,
       userName: msg.from?.username || msg.from?.first_name || 'User',
     };
+  }
+  
+  private isBotMentioned(text: string, entities?: TelegramBot.MessageEntity[]): boolean {
+    if (!this.botUsername) return false;
+    
+    // Check for @username mentions
+    if (text.includes(`@${this.botUsername}`)) {
+      return true;
+    }
+    
+    // Check for mention entities
+    if (entities) {
+      for (const entity of entities) {
+        if (entity.type === 'mention') {
+          const mention = text.substring(entity.offset, entity.offset + entity.length);
+          if (mention === `@${this.botUsername}`) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
   }
 
   private getOrCreateConversation(chatId: number, userId?: number, userName?: string): ConversationState {
@@ -765,13 +837,26 @@ Open the URL in your browser to access your strategic intelligence dashboard.`;
     });
 
     try {
-      await this.bot.sendMessage(chatId, text, {
+      const sentMessage = await this.bot.sendMessage(chatId, text, {
         disable_web_page_preview: true,
       });
       
+      // Track bot message IDs for reply detection
+      if (sentMessage.message_id) {
+        const messageKey = `${chatId}:${sentMessage.message_id}`;
+        this.botMessageIds.add(messageKey);
+        
+        // Clean up old message IDs (keep last 100 per chat)
+        if (this.botMessageIds.size > 1000) {
+          const messagesToDelete = Array.from(this.botMessageIds).slice(0, -100);
+          messagesToDelete.forEach(key => this.botMessageIds.delete(key));
+        }
+      }
+      
       this.logger.info('Message sent successfully', {
         chatId,
-        messageLength: text.length
+        messageLength: text.length,
+        messageId: sentMessage.message_id
       });
     } catch (error) {
       this.logger.error('Error sending message:', { 
@@ -827,7 +912,14 @@ What strategic challenge would you like to discuss?`;
 /start - Show welcome message
 /help - Show this help
 /clear - Clear conversation history
-/ui or /dashboard - Access strategic intelligence dashboard`;
+/ui or /dashboard - Access strategic intelligence dashboard
+
+📱 **Group Chat Behavior**:
+In group chats, I only respond when:
+• Someone replies to my message
+• Someone mentions me (@${this.botUsername || 'botname'})
+• A command is used (starts with /)
+This keeps conversations focused and prevents spam.`;
 
     const strategicCommands = this.ideaService.isIdeaEnabled() ? `
 
@@ -861,10 +953,14 @@ I'm here to support your strategic thinking for Guild.xyz's continued growth!`;
       this.logger.info('Starting bot initialization...');
       
       const me = await this.bot.getMe();
+      this.botUsername = me.username;
+      this.botId = me.id;
+      
       this.logger.info(`Bot started: @${me.username}`, {
         id: me.id,
         firstName: me.first_name,
-        isBot: me.is_bot
+        isBot: me.is_bot,
+        username: this.botUsername
       });
 
       this.logger.info('Initializing Claude client...');

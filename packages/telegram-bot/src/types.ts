@@ -30,6 +30,10 @@ export interface ProcessedMessage {
   messageType: string;
   userId?: number;
   userName: string;
+  isGroupChat: boolean;
+  isReplyToBotMessage: boolean;
+  mentionsBot: boolean;
+  originalMessage: any;
 }
 
 export interface Command {

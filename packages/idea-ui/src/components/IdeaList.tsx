@@ -64,6 +64,16 @@ export const IdeaList = ({
 
   return (
     <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <h3 className="text-blue-800 font-medium">Zawiasa's Strategic Ideas</h3>
+        </div>
+        <p className="text-blue-600 text-sm mt-1">
+          Showing ideas from Telegram user "raz" (Zawiasa)
+        </p>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex items-center gap-4 flex-1">
           <div className="relative flex-1 max-w-md">

@@ -96,7 +96,7 @@ export const IdeaCard = ({ idea, onEdit, onDelete, onUpdateStatus }: IdeaCardPro
       <div className="flex items-center justify-between text-sm text-gray-500">
         <div className="flex items-center gap-1">
           <User size={14} />
-          <span>ID: {idea.userId}</span>
+          <span>{idea.userId === 'raz' ? 'Zawiasa' : `ID: ${idea.userId}`}</span>
         </div>
         <div className="flex items-center gap-1">
           <Clock size={14} />
